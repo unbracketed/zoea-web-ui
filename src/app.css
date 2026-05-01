@@ -1,0 +1,126 @@
+@import "@mariozechner/pi-web-ui/app.css";
+
+:root {
+  color-scheme: light dark;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  min-height: 100vh;
+}
+
+#app {
+  height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.zoea-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.zoea-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.zoea-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zoea-header__title h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.zoea-header__meta {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.zoea-connection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.zoea-connection-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--muted-foreground);
+}
+
+.zoea-connection-badge--open .zoea-connection-badge__dot {
+  background: #22c55e;
+}
+
+.zoea-connection-badge--connecting .zoea-connection-badge__dot,
+.zoea-connection-badge--reconnecting .zoea-connection-badge__dot {
+  background: #f59e0b;
+}
+
+.zoea-connection-badge--error .zoea-connection-badge__dot,
+.zoea-connection-badge--closed .zoea-connection-badge__dot {
+  background: #ef4444;
+}
+
+.zoea-error-banner {
+  margin: 12px auto 0;
+  width: min(960px, calc(100% - 24px));
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+  border: 1px solid color-mix(in oklab, var(--destructive) 28%, transparent);
+  font-size: 0.9rem;
+}
+
+.zoea-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.zoea-messages__inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zoea-composer {
+  padding: 0 16px 16px;
+}
+
+.zoea-composer__inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
