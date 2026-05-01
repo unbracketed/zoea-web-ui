@@ -49,6 +49,20 @@ export interface ZoeaSendMessageResponse {
   accepted: boolean;
 }
 
+export interface ZoeaSessionListItem {
+  session_id: string;
+  user_id: string;
+  project_id?: string;
+  external_id?: string;
+  status: string;
+  created_at: string;
+  last_active_at: string;
+}
+
+export interface ZoeaListSessionsResponse {
+  sessions: ZoeaSessionListItem[];
+}
+
 export interface ZoeaGatewayEvent<T = unknown> {
   type: string;
   session_id?: string;

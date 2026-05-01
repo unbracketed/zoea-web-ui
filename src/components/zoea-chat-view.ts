@@ -4,12 +4,17 @@ import { customElement, property, query } from "lit/decorators.js";
 import { selectToolResultsById, selectVisibleMessages } from "../adapter/selectors";
 import type { ZoeaAgentState } from "../adapter/actions";
 import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
+import type { ZoeaSidebarSession } from "./zoea-sidebar";
 
 @customElement("zoea-chat-view")
 export class ZoeaChatView extends LitElement {
   @property({ attribute: false }) state!: ZoeaAgentState;
+  @property({ type: Array }) sessions: ZoeaSidebarSession[] = [];
+  @property({ type: Boolean }) sessionsLoading = false;
   @property({ attribute: false }) onSend?: (text: string) => void | Promise<void>;
   @property({ attribute: false }) onAbort?: () => void | Promise<void>;
+  @property({ attribute: false }) onSelectSession?: (sessionId: string) => void | Promise<void>;
+  @property({ attribute: false }) onNewSession?: () => void | Promise<void>;
 
   @query("streaming-message-container") private streamingContainer?: StreamingMessageContainer;
   @query(".zoea-messages") private scrollContainer?: HTMLDivElement;
@@ -36,36 +41,46 @@ export class ZoeaChatView extends LitElement {
 
     return html`
       <div class="zoea-shell">
-        <zoea-header
-          .sessionId=${this.state.sessionId}
-          .userId=${this.state.userId}
-          .connection=${this.state.connection}
-        ></zoea-header>
+        <zoea-sidebar
+          .sessions=${this.sessions}
+          .activeSessionId=${this.state.sessionId}
+          .loading=${this.sessionsLoading}
+          .onSelect=${this.onSelectSession}
+          .onNewSession=${this.onNewSession}
+        ></zoea-sidebar>
 
-        <div class="zoea-messages">
-          <div class="zoea-messages__inner">
-            <message-list
-              .messages=${messages}
-              .tools=${[]}
-              .pendingToolCalls=${this.state.pendingToolCalls}
-              .isStreaming=${this.state.isStreaming}
-            ></message-list>
+        <div class="zoea-main">
+          <zoea-header
+            .sessionId=${this.state.sessionId}
+            .userId=${this.state.userId}
+            .connection=${this.state.connection}
+          ></zoea-header>
 
-            <streaming-message-container
-              class=${this.state.isStreaming ? "" : "hidden"}
-              .tools=${[]}
-              .isStreaming=${this.state.isStreaming}
-              .pendingToolCalls=${this.state.pendingToolCalls}
-              .toolResultsById=${toolResultsById}
-            ></streaming-message-container>
+          <div class="zoea-messages">
+            <div class="zoea-messages__inner">
+              <message-list
+                .messages=${messages}
+                .tools=${[]}
+                .pendingToolCalls=${this.state.pendingToolCalls}
+                .isStreaming=${this.state.isStreaming}
+              ></message-list>
+
+              <streaming-message-container
+                class=${this.state.isStreaming ? "" : "hidden"}
+                .tools=${[]}
+                .isStreaming=${this.state.isStreaming}
+                .pendingToolCalls=${this.state.pendingToolCalls}
+                .toolResultsById=${toolResultsById}
+              ></streaming-message-container>
+            </div>
           </div>
-        </div>
 
-        <zoea-composer
-          .isStreaming=${this.state.isStreaming}
-          .onSend=${this.onSend}
-          .onAbort=${this.onAbort}
-        ></zoea-composer>
+          <zoea-composer
+            .isStreaming=${this.state.isStreaming}
+            .onSend=${this.onSend}
+            .onAbort=${this.onAbort}
+          ></zoea-composer>
+        </div>
       </div>
     `;
   }

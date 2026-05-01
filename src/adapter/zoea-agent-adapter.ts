@@ -1,5 +1,5 @@
-import { ZoeaClient, type ZoeaClientOptions } from "../api/zoea-client";
-import type { ZoeaRawMessagesResponse, ZoeaTextMessagesResponse } from "../api/zoea-types";
+import { ZoeaClient, type ZoeaClientOptions, type ZoeaListSessionsOptions } from "../api/zoea-client";
+import type { ZoeaListSessionsResponse, ZoeaRawMessagesResponse, ZoeaTextMessagesResponse } from "../api/zoea-types";
 import { loadSessionSnapshot, saveSessionSnapshot } from "../storage/session-cache";
 import { createInitialState, type ZoeaAction, type ZoeaAgentState } from "./actions";
 import { coerceAgentMessages, coerceTextMessages } from "./message-builders";
@@ -168,6 +168,10 @@ export class ZoeaAgentAdapter {
       return;
     }
     await this.client.abort(this.state.sessionId);
+  }
+
+  async listSessions(options: ZoeaListSessionsOptions = {}): Promise<ZoeaListSessionsResponse> {
+    return this.client.listSessions(options);
   }
 
   destroy(): void {

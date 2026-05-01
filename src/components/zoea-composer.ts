@@ -1,12 +1,15 @@
 import "@mariozechner/pi-web-ui";
 import { html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
+import type { MessageEditor } from "@mariozechner/pi-web-ui";
 
 @customElement("zoea-composer")
 export class ZoeaComposer extends LitElement {
   @property({ type: Boolean }) isStreaming = false;
   @property({ attribute: false }) onSend?: (text: string) => void | Promise<void>;
   @property({ attribute: false }) onAbort?: () => void | Promise<void>;
+
+  @query("message-editor") private editor?: MessageEditor;
 
   protected override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -18,6 +21,10 @@ export class ZoeaComposer extends LitElement {
       return;
     }
     await this.onSend?.(text);
+    if (this.editor) {
+      this.editor.value = "";
+      this.editor.attachments = [];
+    }
   };
 
   override render() {

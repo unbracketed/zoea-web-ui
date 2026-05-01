@@ -33,3 +33,25 @@ export function clearSessionSnapshot(sessionId: string): void {
     // Ignore.
   }
 }
+
+export function getSessionPreview(sessionId: string): string | undefined {
+  const snapshot = loadSessionSnapshot(sessionId);
+  const firstUserMessage = snapshot?.messages.find((message) => message.role === "user" || message.role === "user-with-attachments");
+  if (!firstUserMessage) {
+    return undefined;
+  }
+
+  const content = firstUserMessage.content;
+  const text = typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content.filter((item: any) => item?.type === "text").map((item: any) => item.text || "").join(" ")
+      : "";
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.length <= 48 ? trimmed : `${trimmed.slice(0, 45)}...`;
+}

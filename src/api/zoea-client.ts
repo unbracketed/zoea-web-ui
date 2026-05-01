@@ -3,6 +3,7 @@ import type {
   ZoeaCreateSessionRequest,
   ZoeaCreateSessionResponse,
   ZoeaGatewayEvent,
+  ZoeaListSessionsResponse,
   ZoeaRawMessagesResponse,
   ZoeaSendMessageRequest,
   ZoeaSendMessageResponse,
@@ -23,6 +24,13 @@ export interface ZoeaClientOptions {
   wsBaseUrl?: string;
 }
 
+export interface ZoeaListSessionsOptions {
+  userId?: string;
+  externalId?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export class ZoeaClient {
   private readonly apiBaseUrl: string;
   private readonly wsBaseUrl: string;
@@ -41,6 +49,17 @@ export class ZoeaClient {
 
   async getSessionState(sessionId: string): Promise<ZoeaSessionStateResponse> {
     return this.request<ZoeaSessionStateResponse>(`/v1/sessions/${sessionId}/state`);
+  }
+
+  async listSessions(options: ZoeaListSessionsOptions = {}): Promise<ZoeaListSessionsResponse> {
+    const params = new URLSearchParams();
+    if (options.userId) params.set("user_id", options.userId);
+    if (options.externalId) params.set("external_id", options.externalId);
+    if (typeof options.limit === "number") params.set("limit", String(options.limit));
+    if (typeof options.offset === "number") params.set("offset", String(options.offset));
+    const query = params.toString();
+    const path = query ? `/v1/sessions?${query}` : "/v1/sessions";
+    return this.request<ZoeaListSessionsResponse>(path);
   }
 
   async getMessages(sessionId: string, format: ZoeaTranscriptFormat): Promise<ZoeaRawMessagesResponse | ZoeaTextMessagesResponse> {

@@ -3,15 +3,21 @@ import { customElement, state } from "lit/decorators.js";
 import { zoeaConfig } from "../config";
 import { ZoeaAgentAdapter } from "../adapter/zoea-agent-adapter";
 import { createInitialState, type ZoeaAgentState } from "../adapter/actions";
+import { getSessionPreview } from "../storage/session-cache";
+import type { ZoeaSessionListItem } from "../api/zoea-types";
+import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./connection-badge";
 import "./zoea-chat-view";
 import "./zoea-composer";
 import "./zoea-header";
+import "./zoea-sidebar";
 
 @customElement("zoea-app")
 export class ZoeaApp extends LitElement {
   @state() private appState: ZoeaAgentState = createInitialState(zoeaConfig.defaultUserId, zoeaConfig.defaultProjectId || undefined);
   @state() private uiError?: string;
+  @state() private sessions: ZoeaSidebarSession[] = [];
+  @state() private sessionsLoading = false;
 
   private adapter = new ZoeaAgentAdapter({
     userId: zoeaConfig.defaultUserId,
@@ -52,12 +58,11 @@ export class ZoeaApp extends LitElement {
 
       if (existingSessionId) {
         await this.adapter.attachSession(existingSessionId);
+        await this.refreshSessions();
         return;
       }
 
-      const sessionId = await this.adapter.createSession();
-      this.updateSessionUrl(sessionId);
-      await this.adapter.attachSession(sessionId);
+      await this.startNewSession();
     } catch (error) {
       this.uiError = error instanceof Error ? error.message : String(error);
     }
@@ -69,10 +74,52 @@ export class ZoeaApp extends LitElement {
     window.history.replaceState({}, "", url);
   }
 
+  private decorateSessions(sessions: ZoeaSessionListItem[]): ZoeaSidebarSession[] {
+    return sessions.map((session) => ({
+      ...session,
+      preview: getSessionPreview(session.session_id),
+    }));
+  }
+
+  private refreshSessions = async () => {
+    this.sessionsLoading = true;
+    try {
+      const response = await this.adapter.listSessions({ userId: this.appState.userId, limit: 20, offset: 0 });
+      this.sessions = this.decorateSessions(response.sessions);
+    } catch (error) {
+      this.uiError = error instanceof Error ? error.message : String(error);
+    } finally {
+      this.sessionsLoading = false;
+    }
+  };
+
+  private startNewSession = async () => {
+    this.uiError = undefined;
+    const sessionId = await this.adapter.createSession();
+    this.updateSessionUrl(sessionId);
+    await this.adapter.attachSession(sessionId);
+    await this.refreshSessions();
+  };
+
+  private openSession = async (sessionId: string) => {
+    if (!sessionId || sessionId === this.appState.sessionId) {
+      return;
+    }
+    this.uiError = undefined;
+    try {
+      this.updateSessionUrl(sessionId);
+      await this.adapter.attachSession(sessionId);
+      await this.refreshSessions();
+    } catch (error) {
+      this.uiError = error instanceof Error ? error.message : String(error);
+    }
+  };
+
   private handleSend = async (text: string) => {
     this.uiError = undefined;
     try {
       await this.adapter.prompt(text);
+      await this.refreshSessions();
     } catch (error) {
       this.uiError = error instanceof Error ? error.message : String(error);
     }
@@ -94,6 +141,10 @@ export class ZoeaApp extends LitElement {
       ${error ? html`<div class="zoea-error-banner">${error}</div>` : ""}
       <zoea-chat-view
         .state=${this.appState}
+        .sessions=${this.sessions}
+        .sessionsLoading=${this.sessionsLoading}
+        .onSelectSession=${this.openSession}
+        .onNewSession=${this.startNewSession}
         .onSend=${this.handleSend}
         .onAbort=${this.handleAbort}
       ></zoea-chat-view>
