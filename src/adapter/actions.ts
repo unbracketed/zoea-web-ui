@@ -24,6 +24,11 @@ export interface ZoeaAgentState {
   transientToolResults: ReadonlyMap<string, ToolResultMessage>;
   a2uiSeq?: number;
   a2uiSurfaceIds: readonly string[];
+  // Assistant message ids that own one or more A2UI surfaces. The chat
+  // renderer uses this to decide which message bubbles need an inline
+  // surface block — driving the chat-channel A2UI rendering described
+  // in the agent-development guide.
+  a2uiMessageIds: readonly string[];
   lastError?: string;
 }
 
@@ -37,9 +42,9 @@ export type ZoeaAction =
   | { type: "ws.closed"; reconnecting: boolean }
   | { type: "prompt.optimistic"; text: string; timestamp: number }
   | { type: "gateway.event"; event: ZoeaGatewayEvent }
-  | { type: "a2ui.snapshot.received"; seq?: number; surfaceIds: readonly string[] }
-  | { type: "a2ui.batch.received"; seq?: number; surfaceIds: readonly string[] }
-  | { type: "a2ui.updated"; surfaceIds: readonly string[] }
+  | { type: "a2ui.snapshot.received"; seq?: number; surfaceIds: readonly string[]; messageIds: readonly string[] }
+  | { type: "a2ui.batch.received"; seq?: number; surfaceIds: readonly string[]; messageIds: readonly string[] }
+  | { type: "a2ui.updated"; surfaceIds: readonly string[]; messageIds: readonly string[] }
   | { type: "error"; message: string };
 
 export function createInitialState(userId: string, projectId?: string): ZoeaAgentState {
@@ -53,5 +58,6 @@ export function createInitialState(userId: string, projectId?: string): ZoeaAgen
     pendingToolCalls: new Set(),
     transientToolResults: new Map(),
     a2uiSurfaceIds: [],
+    a2uiMessageIds: [],
   };
 }

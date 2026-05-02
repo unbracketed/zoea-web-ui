@@ -113,13 +113,20 @@ export interface ZoeaRunEndData {
   messages?: unknown[];
 }
 
+export interface A2uiSnapshotGroupData {
+  message_id?: string;
+  messages?: unknown[];
+}
+
 export interface A2uiSnapshotEventData {
   seq?: number;
   messages?: unknown[];
+  groups?: A2uiSnapshotGroupData[];
 }
 
 export interface A2uiBatchEventData {
   seq?: number;
+  message_id?: string;
   messages?: unknown[];
 }
 
@@ -138,5 +145,20 @@ export interface A2uiActionEnvelope {
     };
     client_data_model?: unknown;
     client_capabilities?: unknown;
+  };
+}
+
+// A2uiSubmitEnvelope is the canonical chat-channel submission frame.
+// The server translates this into a normal user-turn prompt to the
+// agent so the agent's existing turn-taking handles the response —
+// matching the A2UI agent-development guide flow.
+export interface A2uiSubmitEnvelope {
+  type: "a2ui.submit";
+  data: {
+    message_id?: string;
+    surface_id: string;
+    action_name?: string;
+    text?: string;
+    values: Record<string, unknown>;
   };
 }

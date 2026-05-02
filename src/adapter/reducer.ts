@@ -206,6 +206,7 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
         projectId: action.projectId,
         a2uiSeq: sessionChanged ? undefined : state.a2uiSeq,
         a2uiSurfaceIds: sessionChanged ? [] : state.a2uiSurfaceIds,
+        a2uiMessageIds: sessionChanged ? [] : state.a2uiMessageIds,
       };
     }
 
@@ -261,6 +262,7 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
         ...state,
         a2uiSeq: action.seq,
         a2uiSurfaceIds: action.surfaceIds,
+        a2uiMessageIds: action.messageIds,
       };
 
     case "a2ui.batch.received":
@@ -268,12 +270,14 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
         ...state,
         a2uiSeq: action.seq ?? state.a2uiSeq,
         a2uiSurfaceIds: action.surfaceIds,
+        a2uiMessageIds: action.messageIds,
       };
 
     case "a2ui.updated":
       return {
         ...state,
         a2uiSurfaceIds: action.surfaceIds,
+        a2uiMessageIds: action.messageIds,
       };
 
     case "error":

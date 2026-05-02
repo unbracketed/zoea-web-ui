@@ -246,6 +246,18 @@ body {
   gap: 12px;
 }
 
+.zoea-a2ui-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  margin: 4px 12px 4px 36px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .zoea-composer {
   padding: 0 16px 16px;
 }

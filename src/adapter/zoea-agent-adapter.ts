@@ -7,6 +7,7 @@ import type {
   ZoeaRawMessagesResponse,
   ZoeaTextMessagesResponse,
 } from "../api/zoea-types";
+import type { A2uiClientAction } from "@a2ui/web_core/v0_9";
 import { loadSessionSnapshot, saveSessionSnapshot } from "../storage/session-cache";
 import { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import { createInitialState, type ZoeaAction, type ZoeaAgentState } from "./actions";
@@ -33,7 +34,7 @@ export class ZoeaAgentAdapter {
     this.client = new ZoeaClient(options);
     this.state = createInitialState(options.userId, options.projectId);
     this.a2ui = new A2uiSessionController((action) => {
-      this.sendA2uiAction(action);
+      this.handleA2uiAction(action);
     });
   }
 
@@ -195,11 +196,17 @@ export class ZoeaAgentAdapter {
     if (event.type === "agent.a2ui.snapshot") {
       const data = (event.data || {}) as A2uiSnapshotEventData;
       const messages = Array.isArray(data.messages) ? data.messages : [];
-      this.a2ui.applySnapshot(typeof data.seq === "number" ? data.seq : undefined, messages);
+      const groups = Array.isArray(data.groups) ? data.groups : undefined;
+      this.a2ui.applySnapshot(
+        typeof data.seq === "number" ? data.seq : undefined,
+        messages,
+        groups,
+      );
       this.dispatch({
         type: "a2ui.snapshot.received",
         seq: this.a2ui.getSeq(),
         surfaceIds: this.a2ui.getSurfaceIds(),
+        messageIds: this.a2ui.getMessageIdsWithSurfaces(),
       });
       return;
     }
@@ -207,11 +214,16 @@ export class ZoeaAgentAdapter {
     if (event.type === "agent.a2ui") {
       const data = (event.data || {}) as A2uiBatchEventData;
       const messages = Array.isArray(data.messages) ? data.messages : [];
-      this.a2ui.applyBatch(typeof data.seq === "number" ? data.seq : undefined, messages);
+      this.a2ui.applyBatch(
+        typeof data.seq === "number" ? data.seq : undefined,
+        messages,
+        data.message_id,
+      );
       this.dispatch({
         type: "a2ui.batch.received",
         seq: this.a2ui.getSeq(),
         surfaceIds: this.a2ui.getSurfaceIds(),
+        messageIds: this.a2ui.getMessageIdsWithSurfaces(),
       });
       return;
     }
@@ -219,13 +231,73 @@ export class ZoeaAgentAdapter {
     this.dispatch({ type: "gateway.event", event });
   }
 
-  private sendA2uiAction(action: { name: string; surfaceId: string; sourceComponentId: string; timestamp: string; context: Record<string, unknown> }): void {
+  // handleA2uiAction is the single entry point invoked by the A2UI lit
+  // controller when a user interacts with a surface. We treat the
+  // action as a chat-channel submission (A2UI agent-development guide
+  // flow): it becomes a user-turn prompt to the agent and an
+  // optimistic user message in the chat timeline. The legacy
+  // a2ui.action relay envelope is also emitted so existing server-side
+  // observers (BASIL flow runtime) keep working — the server's
+  // a2ui.submit handler synthesises one as well, so both paths land.
+  private handleA2uiAction(action: A2uiClientAction): void {
+    this.sendA2uiSubmit(action);
+    this.sendA2uiActionRelay(action);
+  }
+
+  private sendA2uiSubmit(action: A2uiClientAction): void {
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn("Dropping a2ui.action: WebSocket is not open", action);
+      console.warn("Dropping a2ui.submit: WebSocket is not open", action);
       return;
     }
 
+    const messageID = this.findMessageIdForSurface(action.surfaceId);
+    // The A2UI lit controller reports `action.context` as the *button
+    // metadata* (e.g. {action_id: "submit"}) — NOT the form's input
+    // values. The actual user-entered data lives in the per-surface
+    // client data model. We merge both: data-model values take
+    // precedence (real user inputs), action.context is folded in for
+    // any button-only metadata. Without this the agent receives an
+    // empty form and replies "no answer came through".
+    const surfaceInputs = this.collectSurfaceInputs(action.surfaceId);
+    const values: Record<string, unknown> = {
+      ...(action.context || {}),
+      ...surfaceInputs,
+    };
+    const humanText = this.summariseSubmission(action, values);
+    const envelope = {
+      type: "a2ui.submit" as const,
+      data: {
+        message_id: messageID,
+        surface_id: action.surfaceId,
+        action_name: action.name,
+        text: humanText,
+        values,
+      },
+    };
+
+    try {
+      ws.send(JSON.stringify(envelope));
+    } catch (error) {
+      console.error("Failed to send a2ui.submit", error);
+      return;
+    }
+
+    // Optimistic user-turn so the chat timeline immediately reflects
+    // that the user has submitted the form — same affordance the
+    // composer's onSend gives for typed input.
+    this.dispatch({
+      type: "prompt.optimistic",
+      text: humanText,
+      timestamp: Date.now(),
+    });
+  }
+
+  private sendA2uiActionRelay(action: A2uiClientAction): void {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
     const envelope = {
       type: "a2ui.action",
       data: {
@@ -237,12 +309,52 @@ export class ZoeaAgentAdapter {
         client_capabilities: this.a2ui.getClientCapabilities(),
       },
     };
-
     try {
       ws.send(JSON.stringify(envelope));
     } catch (error) {
-      console.error("Failed to send a2ui.action", error);
+      console.error("Failed to send a2ui.action relay", error);
     }
+  }
+
+  private findMessageIdForSurface(surfaceId: string): string | undefined {
+    for (const messageId of this.a2ui.getMessageIdsWithSurfaces()) {
+      const surfaces = this.a2ui.getSurfacesForMessage(messageId);
+      if (surfaces.some((entry) => entry.id === surfaceId)) {
+        return messageId;
+      }
+    }
+    return undefined;
+  }
+
+  // Pulls the user-entered inputs for one surface out of the A2UI
+  // client data model. Shape per A2uiClientDataModelSchema:
+  //   {version: "v0.9", surfaces: {<surfaceId>: {<inputId>: value, ...}}}
+  // Returns {} when the surface has no sendDataModel or hasn't
+  // collected any inputs yet (e.g. user clicked submit on an empty
+  // form) — that's a valid state, the agent decides how to react.
+  private collectSurfaceInputs(surfaceId: string): Record<string, unknown> {
+    const dm = this.a2ui.getClientDataModel() as
+      | { surfaces?: Record<string, Record<string, unknown>> }
+      | undefined;
+    const surfaces = dm?.surfaces;
+    if (!surfaces) return {};
+    const inputs = surfaces[surfaceId];
+    return inputs && typeof inputs === "object" ? { ...inputs } : {};
+  }
+
+  private summariseSubmission(action: A2uiClientAction, values: Record<string, unknown>): string {
+    if (!values || Object.keys(values).length === 0) {
+      return action.name ? `(${action.name})` : "(submitted)";
+    }
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(values)) {
+      if (v == null) continue;
+      const display = typeof v === "string" ? v : JSON.stringify(v);
+      parts.push(`${k}: ${display}`);
+      if (parts.join(", ").length > 200) break;
+    }
+    const summary = parts.join(", ");
+    return summary || (action.name ? `(${action.name})` : "(submitted)");
   }
 
   private async loadTranscript(sessionId: string): Promise<{ messages: ZoeaAgentState["messages"] }> {
