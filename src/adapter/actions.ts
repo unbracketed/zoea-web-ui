@@ -22,6 +22,8 @@ export interface ZoeaAgentState {
   streamingMessage: AssistantMessage | null;
   pendingToolCalls: ReadonlySet<string>;
   transientToolResults: ReadonlyMap<string, ToolResultMessage>;
+  a2uiSeq?: number;
+  a2uiSurfaceIds: readonly string[];
   lastError?: string;
 }
 
@@ -35,6 +37,9 @@ export type ZoeaAction =
   | { type: "ws.closed"; reconnecting: boolean }
   | { type: "prompt.optimistic"; text: string; timestamp: number }
   | { type: "gateway.event"; event: ZoeaGatewayEvent }
+  | { type: "a2ui.snapshot.received"; seq?: number; surfaceIds: readonly string[] }
+  | { type: "a2ui.batch.received"; seq?: number; surfaceIds: readonly string[] }
+  | { type: "a2ui.updated"; surfaceIds: readonly string[] }
   | { type: "error"; message: string };
 
 export function createInitialState(userId: string, projectId?: string): ZoeaAgentState {
@@ -47,5 +52,6 @@ export function createInitialState(userId: string, projectId?: string): ZoeaAgen
     streamingMessage: null,
     pendingToolCalls: new Set(),
     transientToolResults: new Map(),
+    a2uiSurfaceIds: [],
   };
 }

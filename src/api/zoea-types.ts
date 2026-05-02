@@ -112,3 +112,31 @@ export interface ZoeaTurnEndData {
 export interface ZoeaRunEndData {
   messages?: unknown[];
 }
+
+export interface A2uiSnapshotEventData {
+  seq?: number;
+  messages?: unknown[];
+}
+
+export interface A2uiBatchEventData {
+  seq?: number;
+  messages?: unknown[];
+}
+
+export interface A2uiActionEnvelope {
+  type: "a2ui.action";
+  data: {
+    message: {
+      version: "v0.9";
+      action: {
+        name: string;
+        surfaceId: string;
+        sourceComponentId: string;
+        timestamp: string;
+        context: Record<string, unknown>;
+      };
+    };
+    client_data_model?: unknown;
+    client_capabilities?: unknown;
+  };
+}

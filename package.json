@@ -10,6 +10,9 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@a2ui/lit": "^0.9.3",
+    "@a2ui/markdown-it": "^0.0.3",
+    "@a2ui/web_core": "^0.9.2",
     "@mariozechner/mini-lit": "^0.2.0",
     "@mariozechner/pi-ai": "^0.71.0",
     "@mariozechner/pi-web-ui": "^0.71.0",

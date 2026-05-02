@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
         "/healthz": { target, changeOrigin: true },
         "/readyz": { target, changeOrigin: true },
         "/v1": { target, changeOrigin: true, ws: true },
+        "/api": { target, changeOrigin: true },
       },
     },
   };

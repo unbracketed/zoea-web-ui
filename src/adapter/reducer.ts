@@ -197,13 +197,17 @@ function handleGatewayEvent(state: ZoeaAgentState, event: ZoeaAction & { type: "
 
 export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgentState {
   switch (action.type) {
-    case "session.created":
+    case "session.created": {
+      const sessionChanged = state.sessionId && state.sessionId !== action.sessionId;
       return {
         ...state,
         sessionId: action.sessionId,
         userId: action.userId,
         projectId: action.projectId,
+        a2uiSeq: sessionChanged ? undefined : state.a2uiSeq,
+        a2uiSurfaceIds: sessionChanged ? [] : state.a2uiSurfaceIds,
       };
+    }
 
     case "session.cache.loaded":
       return {
@@ -251,6 +255,26 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
 
     case "gateway.event":
       return handleGatewayEvent(state, action);
+
+    case "a2ui.snapshot.received":
+      return {
+        ...state,
+        a2uiSeq: action.seq,
+        a2uiSurfaceIds: action.surfaceIds,
+      };
+
+    case "a2ui.batch.received":
+      return {
+        ...state,
+        a2uiSeq: action.seq ?? state.a2uiSeq,
+        a2uiSurfaceIds: action.surfaceIds,
+      };
+
+    case "a2ui.updated":
+      return {
+        ...state,
+        a2uiSurfaceIds: action.surfaceIds,
+      };
 
     case "error":
       return { ...state, connection: "error", lastError: action.message };

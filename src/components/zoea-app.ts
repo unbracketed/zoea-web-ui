@@ -141,6 +141,7 @@ export class ZoeaApp extends LitElement {
       ${error ? html`<div class="zoea-error-banner">${error}</div>` : ""}
       <zoea-chat-view
         .state=${this.appState}
+        .a2uiController=${this.adapter.a2ui}
         .sessions=${this.sessions}
         .sessionsLoading=${this.sessionsLoading}
         .onSelectSession=${this.openSession}

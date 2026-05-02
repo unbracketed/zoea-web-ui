@@ -1,6 +1,14 @@
 import { ZoeaClient, type ZoeaClientOptions, type ZoeaListSessionsOptions } from "../api/zoea-client";
-import type { ZoeaListSessionsResponse, ZoeaRawMessagesResponse, ZoeaTextMessagesResponse } from "../api/zoea-types";
+import type {
+  A2uiBatchEventData,
+  A2uiSnapshotEventData,
+  ZoeaGatewayEvent,
+  ZoeaListSessionsResponse,
+  ZoeaRawMessagesResponse,
+  ZoeaTextMessagesResponse,
+} from "../api/zoea-types";
 import { loadSessionSnapshot, saveSessionSnapshot } from "../storage/session-cache";
+import { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import { createInitialState, type ZoeaAction, type ZoeaAgentState } from "./actions";
 import { coerceAgentMessages, coerceTextMessages } from "./message-builders";
 import { reduceState } from "./reducer";
@@ -13,6 +21,7 @@ export interface ZoeaAgentAdapterOptions extends ZoeaClientOptions {
 export class ZoeaAgentAdapter {
   private readonly client: ZoeaClient;
   private readonly listeners = new Set<(state: ZoeaAgentState) => void>();
+  public readonly a2ui: A2uiSessionController;
   private ws?: WebSocket;
   private reconnectTimer?: number;
   private manualDisconnect = false;
@@ -23,6 +32,9 @@ export class ZoeaAgentAdapter {
   constructor(private readonly options: ZoeaAgentAdapterOptions) {
     this.client = new ZoeaClient(options);
     this.state = createInitialState(options.userId, options.projectId);
+    this.a2ui = new A2uiSessionController((action) => {
+      this.sendA2uiAction(action);
+    });
   }
 
   subscribe(listener: (state: ZoeaAgentState) => void): () => void {
@@ -38,24 +50,13 @@ export class ZoeaAgentAdapter {
       external_id: input.externalId,
     });
 
-    this.dispatch({
-      type: "session.created",
-      sessionId: response.session_id,
-      userId: input.userId || this.options.userId,
-      projectId: input.projectId || this.options.projectId,
-    });
-
+    this.handleSessionAttached(response.session_id, input.userId || this.options.userId, input.projectId || this.options.projectId);
     return response.session_id;
   }
 
   async attachSession(sessionId: string): Promise<void> {
     if (this.state.sessionId !== sessionId) {
-      this.dispatch({
-        type: "session.created",
-        sessionId,
-        userId: this.options.userId,
-        projectId: this.options.projectId,
-      });
+      this.handleSessionAttached(sessionId, this.options.userId, this.options.projectId);
     }
 
     const snapshot = loadSessionSnapshot(sessionId);
@@ -118,7 +119,7 @@ export class ZoeaAgentAdapter {
         if (this.ws !== ws) {
           return;
         }
-        this.dispatch({ type: "gateway.event", event });
+        this.routeGatewayEvent(event);
       },
       onClose: () => {
         if (this.ws !== ws) {
@@ -177,6 +178,71 @@ export class ZoeaAgentAdapter {
   destroy(): void {
     this.disconnectStream();
     this.listeners.clear();
+    this.a2ui.dispose();
+  }
+
+  private handleSessionAttached(sessionId: string, userId: string, projectId?: string): void {
+    this.a2ui.reset();
+    this.dispatch({
+      type: "session.created",
+      sessionId,
+      userId,
+      projectId,
+    });
+  }
+
+  private routeGatewayEvent(event: ZoeaGatewayEvent): void {
+    if (event.type === "agent.a2ui.snapshot") {
+      const data = (event.data || {}) as A2uiSnapshotEventData;
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      this.a2ui.applySnapshot(typeof data.seq === "number" ? data.seq : undefined, messages);
+      this.dispatch({
+        type: "a2ui.snapshot.received",
+        seq: this.a2ui.getSeq(),
+        surfaceIds: this.a2ui.getSurfaceIds(),
+      });
+      return;
+    }
+
+    if (event.type === "agent.a2ui") {
+      const data = (event.data || {}) as A2uiBatchEventData;
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      this.a2ui.applyBatch(typeof data.seq === "number" ? data.seq : undefined, messages);
+      this.dispatch({
+        type: "a2ui.batch.received",
+        seq: this.a2ui.getSeq(),
+        surfaceIds: this.a2ui.getSurfaceIds(),
+      });
+      return;
+    }
+
+    this.dispatch({ type: "gateway.event", event });
+  }
+
+  private sendA2uiAction(action: { name: string; surfaceId: string; sourceComponentId: string; timestamp: string; context: Record<string, unknown> }): void {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn("Dropping a2ui.action: WebSocket is not open", action);
+      return;
+    }
+
+    const envelope = {
+      type: "a2ui.action",
+      data: {
+        message: {
+          version: "v0.9" as const,
+          action,
+        },
+        client_data_model: this.a2ui.getClientDataModel(),
+        client_capabilities: this.a2ui.getClientCapabilities(),
+      },
+    };
+
+    try {
+      ws.send(JSON.stringify(envelope));
+    } catch (error) {
+      console.error("Failed to send a2ui.action", error);
+    }
   }
 
   private async loadTranscript(sessionId: string): Promise<{ messages: ZoeaAgentState["messages"] }> {

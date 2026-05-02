@@ -3,12 +3,15 @@ import { html, LitElement, type PropertyValues } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { selectToolResultsById, selectVisibleMessages } from "../adapter/selectors";
 import type { ZoeaAgentState } from "../adapter/actions";
+import type { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
+import "./zoea-a2ui-panel";
 
 @customElement("zoea-chat-view")
 export class ZoeaChatView extends LitElement {
   @property({ attribute: false }) state!: ZoeaAgentState;
+  @property({ attribute: false }) a2uiController?: A2uiSessionController;
   @property({ type: Array }) sessions: ZoeaSidebarSession[] = [];
   @property({ type: Boolean }) sessionsLoading = false;
   @property({ attribute: false }) onSend?: (text: string) => void | Promise<void>;
@@ -74,6 +77,8 @@ export class ZoeaChatView extends LitElement {
               ></streaming-message-container>
             </div>
           </div>
+
+          <zoea-a2ui-panel .controller=${this.a2uiController}></zoea-a2ui-panel>
 
           <zoea-composer
             .isStreaming=${this.state.isStreaming}
