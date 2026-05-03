@@ -54,6 +54,7 @@ export interface ZoeaSessionListItem {
   user_id: string;
   project_id?: string;
   external_id?: string;
+  working_dir?: string;
   status: string;
   created_at: string;
   last_active_at: string;
@@ -61,6 +62,10 @@ export interface ZoeaSessionListItem {
 
 export interface ZoeaListSessionsResponse {
   sessions: ZoeaSessionListItem[];
+}
+
+export interface ZoeaServerInfo {
+  default_working_dir: string;
 }
 
 export interface ZoeaGatewayEvent<T = unknown> {

@@ -18,6 +18,7 @@ export class ZoeaApp extends LitElement {
   @state() private uiError?: string;
   @state() private sessions: ZoeaSidebarSession[] = [];
   @state() private sessionsLoading = false;
+  @state() private serverWorkingDir = "";
 
   private adapter = new ZoeaAgentAdapter({
     userId: zoeaConfig.defaultUserId,
@@ -53,6 +54,17 @@ export class ZoeaApp extends LitElement {
 
   private async boot() {
     try {
+      // Discover the server's effective working-dir so the sidebar can
+      // be scoped to "sessions for this server's cwd". A failure here
+      // is non-fatal — the sidebar just falls back to showing all
+      // sessions for this user.
+      try {
+        const info = await this.adapter.getServerInfo();
+        this.serverWorkingDir = info.default_working_dir || "";
+      } catch {
+        this.serverWorkingDir = "";
+      }
+
       const url = new URL(window.location.href);
       const existingSessionId = url.searchParams.get("session");
 
@@ -84,7 +96,12 @@ export class ZoeaApp extends LitElement {
   private refreshSessions = async () => {
     this.sessionsLoading = true;
     try {
-      const response = await this.adapter.listSessions({ userId: this.appState.userId, limit: 20, offset: 0 });
+      const response = await this.adapter.listSessions({
+        userId: this.appState.userId,
+        workingDir: this.serverWorkingDir || undefined,
+        limit: 20,
+        offset: 0,
+      });
       this.sessions = this.decorateSessions(response.sessions);
     } catch (error) {
       this.uiError = error instanceof Error ? error.message : String(error);

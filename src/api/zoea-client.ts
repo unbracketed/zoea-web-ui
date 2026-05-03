@@ -7,6 +7,7 @@ import type {
   ZoeaRawMessagesResponse,
   ZoeaSendMessageRequest,
   ZoeaSendMessageResponse,
+  ZoeaServerInfo,
   ZoeaSessionStateResponse,
   ZoeaTextMessagesResponse,
   ZoeaTranscriptFormat,
@@ -27,6 +28,7 @@ export interface ZoeaClientOptions {
 export interface ZoeaListSessionsOptions {
   userId?: string;
   externalId?: string;
+  workingDir?: string;
   limit?: number;
   offset?: number;
 }
@@ -47,6 +49,12 @@ export class ZoeaClient {
     });
   }
 
+  async resumeSession(sessionId: string): Promise<ZoeaCreateSessionResponse> {
+    return this.request<ZoeaCreateSessionResponse>(`/v1/sessions/${sessionId}/resume`, {
+      method: "POST",
+    });
+  }
+
   async getSessionState(sessionId: string): Promise<ZoeaSessionStateResponse> {
     return this.request<ZoeaSessionStateResponse>(`/v1/sessions/${sessionId}/state`);
   }
@@ -55,11 +63,16 @@ export class ZoeaClient {
     const params = new URLSearchParams();
     if (options.userId) params.set("user_id", options.userId);
     if (options.externalId) params.set("external_id", options.externalId);
+    if (options.workingDir) params.set("working_dir", options.workingDir);
     if (typeof options.limit === "number") params.set("limit", String(options.limit));
     if (typeof options.offset === "number") params.set("offset", String(options.offset));
     const query = params.toString();
     const path = query ? `/v1/sessions?${query}` : "/v1/sessions";
     return this.request<ZoeaListSessionsResponse>(path);
+  }
+
+  async getServerInfo(): Promise<ZoeaServerInfo> {
+    return this.request<ZoeaServerInfo>("/v1/server-info");
   }
 
   async getMessages(sessionId: string, format: ZoeaTranscriptFormat): Promise<ZoeaRawMessagesResponse | ZoeaTextMessagesResponse> {

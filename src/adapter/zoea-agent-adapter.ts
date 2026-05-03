@@ -6,6 +6,7 @@ import type {
   ZoeaGatewayEvent,
   ZoeaListSessionsResponse,
   ZoeaRawMessagesResponse,
+  ZoeaServerInfo,
   ZoeaTextMessagesResponse,
 } from "../api/zoea-types";
 import type { A2uiClientAction } from "@a2ui/web_core/v0_9";
@@ -85,6 +86,13 @@ export class ZoeaAgentAdapter {
         thinkingLevel: snapshot.thinkingLevel,
       });
     }
+
+    // Resume is idempotent: spawns a Pi process if the session has no
+    // live handle (e.g. after a server restart), no-ops if one already
+    // exists. Without this step, hydrate() 404s for any session the
+    // user clicks from the sidebar that wasn't created in the current
+    // server lifetime.
+    await this.client.resumeSession(sessionId);
 
     await this.hydrate();
     await this.connectStream();
@@ -190,6 +198,10 @@ export class ZoeaAgentAdapter {
 
   async listSessions(options: ZoeaListSessionsOptions = {}): Promise<ZoeaListSessionsResponse> {
     return this.client.listSessions(options);
+  }
+
+  async getServerInfo(): Promise<ZoeaServerInfo> {
+    return this.client.getServerInfo();
   }
 
   destroy(): void {
