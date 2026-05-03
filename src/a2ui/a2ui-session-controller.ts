@@ -3,9 +3,27 @@ import { basicCatalog, type LitComponentApi } from "@a2ui/lit/v0_9";
 
 export type A2uiActionListener = (action: A2uiClientAction) => void | Promise<void>;
 
+// Lifecycle events the adapter wires into the reducer so synthetic
+// a2uiForm chat messages stay in sync with the controller's surface
+// state. These are *not* emitted to the network — they are local
+// signals describing observable changes in the controller.
+export interface A2uiLifecycleListener {
+  onSurfaceCreated?(surfaceId: string, messageId: string): void;
+  onSurfaceDeleted?(surfaceId: string): void;
+}
+
 export interface A2uiSurfaceEntry {
   id: string;
   surface: SurfaceModel<LitComponentApi>;
+}
+
+export interface A2uiSubmissionRecord {
+  surfaceId: string;
+  messageId: string;
+  actionName?: string;
+  status: "submitted" | "cancelled";
+  values?: Record<string, unknown>;
+  at?: string;
 }
 
 export class A2uiSessionController {
@@ -19,13 +37,19 @@ export class A2uiSessionController {
   // matches creation order even when a single message produced
   // multiple surfaces.
   private surfacesByMessage = new Map<string, string[]>();
+  // Recorded submissions keyed by surfaceId. Mirrors the broker's
+  // per-surface record so reload re-applies the closed-state card.
+  private submissions = new Map<string, A2uiSubmissionRecord>();
   private currentMessageID = "";
   private readonly listeners = new Set<() => void>();
   private surfaceCreatedSubscription?: { unsubscribe: () => void };
   private surfaceDeletedSubscription?: { unsubscribe: () => void };
   private latestSeq?: number;
 
-  constructor(private readonly actionHandler?: A2uiActionListener) {
+  constructor(
+    private readonly actionHandler?: A2uiActionListener,
+    private readonly lifecycle?: A2uiLifecycleListener,
+  ) {
     this.processor = this.buildProcessor();
   }
 
@@ -34,10 +58,26 @@ export class A2uiSessionController {
     this.surfaceOrder = [];
     this.surfaceOwner = new Map();
     this.surfacesByMessage = new Map();
+    this.submissions = new Map();
     this.currentMessageID = "";
     this.latestSeq = undefined;
     this.processor = this.buildProcessor();
     this.notify();
+  }
+
+  // Records a server-confirmed submission. Called by the adapter on
+  // agent.a2ui.submission (live) or once per entry on snapshot replay.
+  applySubmission(record: A2uiSubmissionRecord): void {
+    this.submissions.set(record.surfaceId, record);
+    this.notify();
+  }
+
+  getSubmission(surfaceId: string): A2uiSubmissionRecord | undefined {
+    return this.submissions.get(surfaceId);
+  }
+
+  getAllSubmissions(): A2uiSubmissionRecord[] {
+    return [...this.submissions.values()];
   }
 
   applySnapshot(seq: number | undefined, messages: unknown[], groups?: ReadonlyArray<{ message_id?: string; messages?: unknown[] }>): void {
@@ -178,6 +218,7 @@ export class A2uiSessionController {
           this.surfacesByMessage.set(owner, [...existing, surface.id]);
         }
       }
+      this.lifecycle?.onSurfaceCreated?.(surface.id, owner);
       this.notify();
     });
     this.surfaceDeletedSubscription = processor.onSurfaceDeleted((id) => {
@@ -195,6 +236,7 @@ export class A2uiSessionController {
           }
         }
       }
+      this.lifecycle?.onSurfaceDeleted?.(id);
       this.notify();
     });
     return processor;

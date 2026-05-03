@@ -118,16 +118,37 @@ export interface A2uiSnapshotGroupData {
   messages?: unknown[];
 }
 
+export interface A2uiSnapshotSubmissionData {
+  surface_id: string;
+  message_id?: string;
+  action_name?: string;
+  status: "submitted" | "cancelled" | string;
+  values?: unknown;
+  at?: string;
+}
+
 export interface A2uiSnapshotEventData {
   seq?: number;
   messages?: unknown[];
   groups?: A2uiSnapshotGroupData[];
+  submissions?: A2uiSnapshotSubmissionData[];
 }
 
 export interface A2uiBatchEventData {
   seq?: number;
   message_id?: string;
   messages?: unknown[];
+}
+
+// Live broadcast emitted when the broker records a user submission for
+// an A2UI surface. Mirrors A2UISubmission on the Go side.
+export interface A2uiSubmissionEventData {
+  surface_id: string;
+  message_id?: string;
+  action_name?: string;
+  status: "submitted" | "cancelled" | string;
+  values?: unknown;
+  at?: string;
 }
 
 export interface A2uiActionEnvelope {

@@ -8,7 +8,7 @@ import type {
   ZoeaTurnEndData,
 } from "../api/zoea-types";
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import type { ZoeaAction, ZoeaAgentState } from "./actions";
+import type { A2uiFormMessage, ChatListMessage, ZoeaAction, ZoeaAgentState } from "./actions";
 import {
   applyTextDelta,
   applyThinkingDelta,
@@ -34,6 +34,49 @@ function appendAssistant(messages: ZoeaAgentState["messages"], candidate: ZoeaAg
     message.responseId === candidate.responseId,
   );
   return exists ? messages : [...messages, candidate];
+}
+
+// findFormMessage returns the index of the synthetic form-message
+// entry for `surfaceId` in the message list, or -1 if not present.
+function findFormMessageIdx(messages: ChatListMessage[], surfaceId: string): number {
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role === "a2uiForm" && m.surfaceId === surfaceId) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// insertFormMessage places the synthetic form entry right after the
+// assistant message whose responseId matches form.anchorAfterMessageId.
+// Falls back to end-of-list when no matching anchor exists yet (the
+// assistant message may stream in after the surface for very fast
+// flows; the entry will reposition itself on later reducer passes if
+// we ever add that, but in practice the assistant message lands
+// first).
+function insertFormMessage(messages: ChatListMessage[], form: A2uiFormMessage): ChatListMessage[] {
+  if (findFormMessageIdx(messages, form.surfaceId) !== -1) {
+    return messages;
+  }
+  if (!form.anchorAfterMessageId) {
+    return [...messages, form];
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && m.responseId === form.anchorAfterMessageId) {
+      return [...messages.slice(0, i + 1), form, ...messages.slice(i + 1)];
+    }
+  }
+  return [...messages, form];
+}
+
+function updateFormMessage(messages: ChatListMessage[], surfaceId: string, patch: Partial<A2uiFormMessage>): ChatListMessage[] {
+  const idx = findFormMessageIdx(messages, surfaceId);
+  if (idx === -1) return messages;
+  const current = messages[idx] as A2uiFormMessage;
+  const next: A2uiFormMessage = { ...current, ...patch };
+  return [...messages.slice(0, idx), next, ...messages.slice(idx + 1)];
 }
 
 function appendToolResults(messages: ZoeaAgentState["messages"], toolResults: ToolResultMessage[]) {
@@ -279,6 +322,55 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
         a2uiSurfaceIds: action.surfaceIds,
         a2uiMessageIds: action.messageIds,
       };
+
+    case "a2ui.surface.created": {
+      const form: A2uiFormMessage = {
+        role: "a2uiForm",
+        surfaceId: action.surfaceId,
+        messageId: action.messageId,
+        anchorAfterMessageId: action.messageId,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      };
+      return { ...state, messages: insertFormMessage(state.messages, form) };
+    }
+
+    case "a2ui.surface.deleted": {
+      const idx = findFormMessageIdx(state.messages, action.surfaceId);
+      if (idx === -1) return state;
+      // Don't strip the form bubble on surface deletion — A2UI emits
+      // deleteSurface to free state, but we want the post-submit card
+      // to remain in the timeline as historical record. Only remove
+      // forms that are still pending (i.e. server canceled mid-flight
+      // without a recorded submission).
+      const current = state.messages[idx] as A2uiFormMessage;
+      if (current.status !== "pending") return state;
+      const next = [...state.messages.slice(0, idx), ...state.messages.slice(idx + 1)];
+      return { ...state, messages: next };
+    }
+
+    case "a2ui.surface.submitted":
+      return {
+        ...state,
+        messages: updateFormMessage(state.messages, action.surfaceId, {
+          status: action.status,
+          submittedAction: action.action,
+          submittedValues: action.values,
+          submittedAt: action.at,
+          messageId: action.messageId || undefined as unknown as string,
+        }),
+      };
+
+    case "a2ui.surfaces.rehydrate": {
+      // Replace any existing a2uiForm entries with the rehydrated set
+      // so a snapshot-driven reload converges to one canonical view.
+      const withoutForms = state.messages.filter((m) => m.role !== "a2uiForm");
+      let next: ChatListMessage[] = withoutForms;
+      for (const entry of action.entries) {
+        next = insertFormMessage(next, entry);
+      }
+      return { ...state, messages: next };
+    }
 
     case "error":
       return { ...state, connection: "error", lastError: action.message };

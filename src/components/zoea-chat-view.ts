@@ -3,12 +3,13 @@ import "@a2ui/lit/v0_9";
 import { html, LitElement, nothing, type PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { selectToolResultsById, selectVisibleMessages } from "../adapter/selectors";
-import type { ZoeaAgentState } from "../adapter/actions";
-import type { A2uiSessionController, A2uiSurfaceEntry } from "../a2ui/a2ui-session-controller";
+import type { A2uiFormMessage, ChatListMessage, ZoeaAgentState } from "../adapter/actions";
+import type { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-web-ui";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./zoea-a2ui-panel";
+import "./zoea-a2ui-form-message";
 
 @customElement("zoea-chat-view")
 export class ZoeaChatView extends LitElement {
@@ -66,25 +67,23 @@ export class ZoeaChatView extends LitElement {
     }
   }
 
-  // Splits the message list around assistant messages that own A2UI
-  // surfaces, returning alternating message-segment / surface-block
-  // entries. This is what makes the rendered surface appear *inline*
-  // with the agent's message bubble in the chat scroll, matching the
-  // A2UI agent-development guide flow ("the agent outputs text and a
-  // JSON list of A2UI messages — the client renders both into the
-  // chat timeline together").
-  private buildChatSegments(messages: AgentMessage[]): Array<
+  // Splits the chat list into runs of real AgentMessages and runs of
+  // synthetic a2uiForm entries. Real messages render via <message-list>;
+  // form entries render via <zoea-a2ui-form-message>. This is what
+  // makes A2UI forms appear as first-class items in the timeline that
+  // scroll with chat, persist across reload, and carry their own
+  // pending → submitted/cancelled state.
+  private buildChatSegments(messages: ChatListMessage[]): Array<
     | { kind: "messages"; messages: AgentMessage[] }
-    | { kind: "surfaces"; messageId: string; surfaces: A2uiSurfaceEntry[] }
+    | { kind: "form"; form: A2uiFormMessage }
   > {
     const segments: Array<
       | { kind: "messages"; messages: AgentMessage[] }
-      | { kind: "surfaces"; messageId: string; surfaces: A2uiSurfaceEntry[] }
+      | { kind: "form"; form: A2uiFormMessage }
     > = [];
-    if (!this.a2uiController || messages.length === 0) {
-      return [{ kind: "messages", messages }];
+    if (messages.length === 0) {
+      return segments;
     }
-    const ownerSet = new Set(this.state.a2uiMessageIds);
     let buffer: AgentMessage[] = [];
     const flush = () => {
       if (buffer.length > 0) {
@@ -93,20 +92,18 @@ export class ZoeaChatView extends LitElement {
       }
     };
     for (const message of messages) {
+      if (message.role === "a2uiForm") {
+        flush();
+        segments.push({ kind: "form", form: message });
+        continue;
+      }
       buffer.push(message);
-      if (message.role !== "assistant") continue;
-      const responseId = message.responseId;
-      if (!responseId || !ownerSet.has(responseId)) continue;
-      const surfaces = this.a2uiController.getSurfacesForMessage(responseId);
-      if (surfaces.length === 0) continue;
-      flush();
-      segments.push({ kind: "surfaces", messageId: responseId, surfaces });
     }
     flush();
     return segments;
   }
 
-  private renderSegments(messages: AgentMessage[]) {
+  private renderSegments(messages: ChatListMessage[]) {
     const segments = this.buildChatSegments(messages);
     return segments.map((segment) => {
       if (segment.kind === "messages") {
@@ -117,11 +114,10 @@ export class ZoeaChatView extends LitElement {
           .isStreaming=${this.state.isStreaming}
         ></message-list>`;
       }
-      return html`<div class="zoea-a2ui-inline" data-message-id=${segment.messageId}>
-        ${segment.surfaces.map(
-          (entry) => html`<a2ui-surface .surface=${entry.surface}></a2ui-surface>`,
-        )}
-      </div>`;
+      return html`<zoea-a2ui-form-message
+        .controller=${this.a2uiController}
+        .form=${segment.form}
+      ></zoea-a2ui-form-message>`;
     });
   }
 

@@ -1,7 +1,7 @@
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import type { ZoeaAgentState } from "./actions";
+import type { ChatListMessage, ZoeaAgentState } from "./actions";
 
-export function selectVisibleMessages(state: ZoeaAgentState) {
+export function selectVisibleMessages(state: ZoeaAgentState): ChatListMessage[] {
   return state.messages;
 }
 
@@ -9,9 +9,9 @@ export function selectToolResultsById(state: ZoeaAgentState): Map<string, ToolRe
   const result = new Map<string, ToolResultMessage>();
 
   for (const message of state.messages) {
-    if (message.role === "toolResult") {
-      result.set(message.toolCallId, message);
-    }
+    // Synthetic a2uiForm entries are not LLM messages — skip.
+    if (message.role !== "toolResult") continue;
+    result.set(message.toolCallId, message);
   }
 
   for (const [toolCallId, message] of state.transientToolResults.entries()) {

@@ -1,9 +1,26 @@
 import type { AgentMessage } from "@mariozechner/pi-web-ui";
 
+// ChatListEntry is the persisted shape — same union as ChatListMessage
+// in adapter/actions, redeclared here to avoid an import cycle. We
+// only need a structural type for serialization/round-trip.
+type ChatListEntry =
+  | AgentMessage
+  | {
+      role: "a2uiForm";
+      surfaceId: string;
+      messageId: string;
+      anchorAfterMessageId: string;
+      status: "pending" | "submitted" | "cancelled";
+      submittedValues?: Record<string, unknown>;
+      submittedAction?: string;
+      submittedAt?: string;
+      createdAt: string;
+    };
+
 const PREFIX = "zoea-web-ui.session.";
 
 export interface SessionSnapshot {
-  messages: AgentMessage[];
+  messages: ChatListEntry[];
   model?: string;
   thinkingLevel?: string;
   updatedAt: string;
@@ -36,7 +53,10 @@ export function clearSessionSnapshot(sessionId: string): void {
 
 export function getSessionPreview(sessionId: string): string | undefined {
   const snapshot = loadSessionSnapshot(sessionId);
-  const firstUserMessage = snapshot?.messages.find((message) => message.role === "user" || message.role === "user-with-attachments");
+  const firstUserMessage = snapshot?.messages.find(
+    (message): message is AgentMessage =>
+      message.role === "user" || message.role === "user-with-attachments",
+  );
   if (!firstUserMessage) {
     return undefined;
   }

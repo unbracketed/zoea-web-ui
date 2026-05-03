@@ -2,6 +2,7 @@ import { ZoeaClient, type ZoeaClientOptions, type ZoeaListSessionsOptions } from
 import type {
   A2uiBatchEventData,
   A2uiSnapshotEventData,
+  A2uiSubmissionEventData,
   ZoeaGatewayEvent,
   ZoeaListSessionsResponse,
   ZoeaRawMessagesResponse,
@@ -10,7 +11,12 @@ import type {
 import type { A2uiClientAction } from "@a2ui/web_core/v0_9";
 import { loadSessionSnapshot, saveSessionSnapshot } from "../storage/session-cache";
 import { A2uiSessionController } from "../a2ui/a2ui-session-controller";
-import { createInitialState, type ZoeaAction, type ZoeaAgentState } from "./actions";
+import {
+  createInitialState,
+  type A2uiFormMessage,
+  type ZoeaAction,
+  type ZoeaAgentState,
+} from "./actions";
 import { coerceAgentMessages, coerceTextMessages } from "./message-builders";
 import { reduceState } from "./reducer";
 
@@ -33,9 +39,19 @@ export class ZoeaAgentAdapter {
   constructor(private readonly options: ZoeaAgentAdapterOptions) {
     this.client = new ZoeaClient(options);
     this.state = createInitialState(options.userId, options.projectId);
-    this.a2ui = new A2uiSessionController((action) => {
-      this.handleA2uiAction(action);
-    });
+    this.a2ui = new A2uiSessionController(
+      (action) => {
+        this.handleA2uiAction(action);
+      },
+      {
+        onSurfaceCreated: (surfaceId, messageId) => {
+          this.dispatch({ type: "a2ui.surface.created", surfaceId, messageId });
+        },
+        onSurfaceDeleted: (surfaceId) => {
+          this.dispatch({ type: "a2ui.surface.deleted", surfaceId });
+        },
+      },
+    );
   }
 
   subscribe(listener: (state: ZoeaAgentState) => void): () => void {
@@ -202,12 +218,27 @@ export class ZoeaAgentAdapter {
         messages,
         groups,
       );
+      // Apply persisted submissions before rebuilding form messages so
+      // each rehydrated entry can render in its closed state.
+      const submissions = Array.isArray(data.submissions) ? data.submissions : [];
+      for (const sub of submissions) {
+        if (!sub.surface_id) continue;
+        this.a2ui.applySubmission({
+          surfaceId: sub.surface_id,
+          messageId: sub.message_id || "",
+          actionName: sub.action_name,
+          status: sub.status === "cancelled" ? "cancelled" : "submitted",
+          values: sub.values as Record<string, unknown> | undefined,
+          at: sub.at,
+        });
+      }
       this.dispatch({
         type: "a2ui.snapshot.received",
         seq: this.a2ui.getSeq(),
         surfaceIds: this.a2ui.getSurfaceIds(),
         messageIds: this.a2ui.getMessageIdsWithSurfaces(),
       });
+      this.rehydrateFormMessages();
       return;
     }
 
@@ -228,7 +259,59 @@ export class ZoeaAgentAdapter {
       return;
     }
 
+    if (event.type === "agent.a2ui.submission") {
+      const data = (event.data || {}) as A2uiSubmissionEventData;
+      if (!data.surface_id) return;
+      const status = data.status === "cancelled" ? "cancelled" : "submitted";
+      this.a2ui.applySubmission({
+        surfaceId: data.surface_id,
+        messageId: data.message_id || "",
+        actionName: data.action_name,
+        status,
+        values: data.values as Record<string, unknown> | undefined,
+        at: data.at,
+      });
+      this.dispatch({
+        type: "a2ui.surface.submitted",
+        surfaceId: data.surface_id,
+        messageId: data.message_id || "",
+        action: data.action_name,
+        values: data.values as Record<string, unknown> | undefined,
+        status,
+        at: data.at,
+      });
+      return;
+    }
+
     this.dispatch({ type: "gateway.event", event });
+  }
+
+  // Rebuilds synthetic a2uiForm chat-list entries from the
+  // controller's current state — used after snapshot replay so the
+  // timeline ordering converges to one canonical view. Surfaces with
+  // no message_id (true orphans) are skipped here; the orphan side
+  // panel still handles them.
+  private rehydrateFormMessages(): void {
+    const entries: A2uiFormMessage[] = [];
+    for (const surfaceId of this.a2ui.getSurfaceIds()) {
+      const messageId = this.findMessageIdForSurface(surfaceId);
+      if (!messageId) continue;
+      const sub = this.a2ui.getSubmission(surfaceId);
+      entries.push({
+        role: "a2uiForm",
+        surfaceId,
+        messageId,
+        anchorAfterMessageId: messageId,
+        status: sub?.status ?? "pending",
+        submittedValues: sub?.values,
+        submittedAction: sub?.actionName,
+        submittedAt: sub?.at,
+        createdAt: sub?.at ?? new Date().toISOString(),
+      });
+    }
+    if (entries.length > 0) {
+      this.dispatch({ type: "a2ui.surfaces.rehydrate", entries });
+    }
   }
 
   // handleA2uiAction is the single entry point invoked by the A2UI lit
@@ -283,13 +366,28 @@ export class ZoeaAgentAdapter {
       return;
     }
 
-    // Optimistic user-turn so the chat timeline immediately reflects
-    // that the user has submitted the form — same affordance the
-    // composer's onSend gives for typed input.
+    // Optimistic local update so the form bubble flips to "submitted"
+    // immediately, before the server's broadcast lands. The server
+    // event will arrive moments later and confirm/overwrite this.
+    const status: "submitted" | "cancelled" =
+      action.name && /cancel|dismiss|close/i.test(action.name) ? "cancelled" : "submitted";
+    const at = new Date().toISOString();
+    this.a2ui.applySubmission({
+      surfaceId: action.surfaceId,
+      messageId: messageID || "",
+      actionName: action.name,
+      status,
+      values,
+      at,
+    });
     this.dispatch({
-      type: "prompt.optimistic",
-      text: humanText,
-      timestamp: Date.now(),
+      type: "a2ui.surface.submitted",
+      surfaceId: action.surfaceId,
+      messageId: messageID || "",
+      action: action.name,
+      values,
+      status,
+      at,
     });
   }
 
