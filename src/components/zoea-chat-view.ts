@@ -8,6 +8,7 @@ import type { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-web-ui";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
+import type { ZoeaServer } from "../storage/server-registry";
 import "./zoea-a2ui-panel";
 import "./zoea-a2ui-form-message";
 
@@ -17,10 +18,15 @@ export class ZoeaChatView extends LitElement {
   @property({ attribute: false }) a2uiController?: A2uiSessionController;
   @property({ type: Array }) sessions: ZoeaSidebarSession[] = [];
   @property({ type: Boolean }) sessionsLoading = false;
+  @property({ type: Array }) servers: ZoeaServer[] = [];
+  @property() activeServerId = "";
   @property({ attribute: false }) onSend?: (text: string) => void | Promise<void>;
   @property({ attribute: false }) onAbort?: () => void | Promise<void>;
   @property({ attribute: false }) onSelectSession?: (sessionId: string) => void | Promise<void>;
   @property({ attribute: false }) onNewSession?: () => void | Promise<void>;
+  @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
+  @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
 
   // Bumped whenever the controller's surfaces change so we re-render
   // the chat segments. We don't read controller-internal state directly
@@ -151,6 +157,11 @@ export class ZoeaChatView extends LitElement {
             .sessionId=${this.state.sessionId}
             .userId=${this.state.userId}
             .connection=${this.state.connection}
+            .servers=${this.servers}
+            .activeServerId=${this.activeServerId}
+            .onSelectServer=${this.onSelectServer}
+            .onAddServer=${this.onAddServer}
+            .onRemoveServer=${this.onRemoveServer}
           ></zoea-header>
 
           <div class="zoea-messages">

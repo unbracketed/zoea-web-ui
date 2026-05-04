@@ -1,12 +1,19 @@
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { ConnectionStatus } from "../adapter/actions";
+import type { ZoeaServer } from "../storage/server-registry";
+import "./zoea-server-picker";
 
 @customElement("zoea-header")
 export class ZoeaHeader extends LitElement {
   @property() sessionId?: string;
   @property() userId = "";
   @property() connection: ConnectionStatus = "idle";
+  @property({ type: Array }) servers: ZoeaServer[] = [];
+  @property() activeServerId = "";
+  @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
+  @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
 
   protected override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -35,7 +42,16 @@ export class ZoeaHeader extends LitElement {
             ${this.sessionId ? html`&nbsp;•&nbsp;session: <code>${this.sessionId}</code>` : ""}
           </div>
         </div>
-        <connection-badge .status=${this.connection} .label=${label}></connection-badge>
+        <div class="zoea-header__actions">
+          <zoea-server-picker
+            .servers=${this.servers}
+            .activeServerId=${this.activeServerId}
+            .onSelectServer=${this.onSelectServer}
+            .onAddServer=${this.onAddServer}
+            .onRemoveServer=${this.onRemoveServer}
+          ></zoea-server-picker>
+          <connection-badge .status=${this.connection} .label=${label}></connection-badge>
+        </div>
       </header>
     `;
   }

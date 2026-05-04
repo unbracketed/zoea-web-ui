@@ -151,6 +151,188 @@ body {
   color: var(--muted-foreground);
 }
 
+.zoea-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoea-server-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.zoea-server-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.8rem;
+  cursor: pointer;
+  max-width: 280px;
+}
+
+.zoea-server-picker__trigger-label {
+  font-weight: 600;
+}
+
+.zoea-server-picker__trigger-url {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.zoea-server-picker__caret {
+  color: var(--muted-foreground);
+}
+
+.zoea-server-picker__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 280px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoea-server-picker__menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zoea-server-picker__menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 2px;
+}
+
+.zoea-server-picker__item {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.zoea-server-picker__item:hover,
+.zoea-server-picker__item.is-active {
+  background: color-mix(in oklab, var(--secondary) 60%, transparent);
+}
+
+.zoea-server-picker__item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.zoea-server-picker__item-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.zoea-server-picker__item-url {
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zoea-server-picker__item-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 28px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.zoea-server-picker__item-remove:hover {
+  background: color-mix(in oklab, var(--destructive) 18%, transparent);
+  color: var(--destructive);
+}
+
+.zoea-server-picker__add {
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.zoea-server-picker__add:hover {
+  background: color-mix(in oklab, var(--secondary) 60%, transparent);
+}
+
+.zoea-server-picker__add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.zoea-server-picker__input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.zoea-server-picker__add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.zoea-server-picker__button {
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.zoea-server-picker__button.is-primary {
+  background: var(--primary, #2563eb);
+  color: var(--primary-foreground, #fff);
+  border-color: transparent;
+}
+
 .zoea-connection-badge {
   display: inline-flex;
   align-items: center;

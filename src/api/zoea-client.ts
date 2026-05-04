@@ -1,4 +1,3 @@
-import { zoeaConfig } from "../config";
 import type {
   ZoeaCreateSessionRequest,
   ZoeaCreateSessionResponse,
@@ -20,10 +19,18 @@ export interface ZoeaStreamHandlers {
   onError?: (event: Event) => void;
 }
 
+// proxyTarget is the upstream host the dev proxy should forward to —
+// e.g. "http://localhost:14014". The browser ALWAYS calls the page
+// origin; this string is sent as a per-request hint (X-Zoea-Target
+// header for REST, ?zoeaTarget=... query param for the WebSocket
+// upgrade since browsers can't set custom WS headers). Empty/omitted
+// means "use the dev proxy's compiled-in fallback".
 export interface ZoeaClientOptions {
-  apiBaseUrl?: string;
-  wsBaseUrl?: string;
+  proxyTarget?: string;
 }
+
+const TARGET_HEADER = "X-Zoea-Target";
+const TARGET_QUERY = "zoeaTarget";
 
 export interface ZoeaListSessionsOptions {
   userId?: string;
@@ -34,12 +41,10 @@ export interface ZoeaListSessionsOptions {
 }
 
 export class ZoeaClient {
-  private readonly apiBaseUrl: string;
-  private readonly wsBaseUrl: string;
+  private readonly proxyTarget: string;
 
   constructor(options: ZoeaClientOptions = {}) {
-    this.apiBaseUrl = options.apiBaseUrl ?? zoeaConfig.apiBaseUrl;
-    this.wsBaseUrl = options.wsBaseUrl ?? zoeaConfig.wsBaseUrl;
+    this.proxyTarget = (options.proxyTarget ?? "").replace(/\/+$/, "");
   }
 
   async createSession(payload: ZoeaCreateSessionRequest): Promise<ZoeaCreateSessionResponse> {
@@ -112,12 +117,16 @@ export class ZoeaClient {
   }
 
   private async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(init.headers as Record<string, string> | undefined),
+    };
+    if (this.proxyTarget) {
+      headers[TARGET_HEADER] = this.proxyTarget;
+    }
     const response = await fetch(this.buildHttpUrl(path), {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers || {}),
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -141,20 +150,15 @@ export class ZoeaClient {
   }
 
   private buildHttpUrl(path: string): string {
-    const base = this.apiBaseUrl || window.location.origin;
-    return new URL(path, `${base}/`).toString();
+    return new URL(path, `${window.location.origin}/`).toString();
   }
 
   private buildWsUrl(path: string): string {
-    const explicitBase = this.wsBaseUrl || this.apiBaseUrl;
-    if (explicitBase) {
-      const url = new URL(path, `${explicitBase}/`);
-      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-      return url.toString();
-    }
-
     const url = new URL(path, window.location.origin);
     url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    if (this.proxyTarget) {
+      url.searchParams.set(TARGET_QUERY, this.proxyTarget);
+    }
     return url.toString();
   }
 }

@@ -4,12 +4,21 @@ import { zoeaConfig } from "../config";
 import { ZoeaAgentAdapter } from "../adapter/zoea-agent-adapter";
 import { createInitialState, type ZoeaAgentState } from "../adapter/actions";
 import { getSessionPreview } from "../storage/session-cache";
+import {
+  addServer,
+  getActiveServer,
+  getServers,
+  removeServer,
+  setActiveServer,
+  type ZoeaServer,
+} from "../storage/server-registry";
 import type { ZoeaSessionListItem } from "../api/zoea-types";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./connection-badge";
 import "./zoea-chat-view";
 import "./zoea-composer";
 import "./zoea-header";
+import "./zoea-server-picker";
 import "./zoea-sidebar";
 
 @customElement("zoea-app")
@@ -19,14 +28,10 @@ export class ZoeaApp extends LitElement {
   @state() private sessions: ZoeaSidebarSession[] = [];
   @state() private sessionsLoading = false;
   @state() private serverWorkingDir = "";
+  @state() private servers: ZoeaServer[] = getServers();
+  @state() private activeServer: ZoeaServer = getActiveServer();
 
-  private adapter = new ZoeaAgentAdapter({
-    userId: zoeaConfig.defaultUserId,
-    projectId: zoeaConfig.defaultProjectId || undefined,
-    apiBaseUrl: zoeaConfig.apiBaseUrl,
-    wsBaseUrl: zoeaConfig.wsBaseUrl,
-  });
-
+  private adapter!: ZoeaAgentAdapter;
   private unsubscribe?: () => void;
   private booted = false;
 
@@ -40,30 +45,33 @@ export class ZoeaApp extends LitElement {
       return;
     }
     this.booted = true;
-    this.unsubscribe = this.adapter.subscribe((state) => {
-      this.appState = state;
-    });
+    this.createAdapter();
     void this.boot();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.unsubscribe?.();
-    this.adapter.destroy();
+    this.adapter?.destroy();
+  }
+
+  private createAdapter(): void {
+    // The browser always talks to the page origin; the dev proxy reads
+    // the active server's baseUrl from a per-request hint and forwards
+    // there. Empty means "use the dev proxy's compiled-in fallback".
+    this.adapter = new ZoeaAgentAdapter({
+      userId: zoeaConfig.defaultUserId,
+      projectId: zoeaConfig.defaultProjectId || undefined,
+      proxyTarget: this.activeServer.baseUrl || undefined,
+    });
+    this.unsubscribe = this.adapter.subscribe((state) => {
+      this.appState = state;
+    });
   }
 
   private async boot() {
     try {
-      // Discover the server's effective working-dir so the sidebar can
-      // be scoped to "sessions for this server's cwd". A failure here
-      // is non-fatal — the sidebar just falls back to showing all
-      // sessions for this user.
-      try {
-        const info = await this.adapter.getServerInfo();
-        this.serverWorkingDir = info.default_working_dir || "";
-      } catch {
-        this.serverWorkingDir = "";
-      }
+      await this.discoverWorkingDir();
 
       const url = new URL(window.location.href);
       const existingSessionId = url.searchParams.get("session");
@@ -80,9 +88,28 @@ export class ZoeaApp extends LitElement {
     }
   }
 
+  private async discoverWorkingDir(): Promise<void> {
+    // Discover the server's effective working-dir so the sidebar can
+    // be scoped to "sessions for this server's cwd". A failure here
+    // is non-fatal — the sidebar just falls back to showing all
+    // sessions for this user.
+    try {
+      const info = await this.adapter.getServerInfo();
+      this.serverWorkingDir = info.default_working_dir || "";
+    } catch {
+      this.serverWorkingDir = "";
+    }
+  }
+
   private updateSessionUrl(sessionId: string) {
     const url = new URL(window.location.href);
     url.searchParams.set("session", sessionId);
+    window.history.replaceState({}, "", url);
+  }
+
+  private clearSessionUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("session");
     window.history.replaceState({}, "", url);
   }
 
@@ -151,6 +178,62 @@ export class ZoeaApp extends LitElement {
     }
   };
 
+  private handleSelectServer = async (id: string) => {
+    if (id === this.activeServer.id) return;
+    const next = this.servers.find((s) => s.id === id);
+    if (!next) return;
+    setActiveServer(id);
+    this.activeServer = next;
+    await this.switchActiveServer();
+  };
+
+  private handleAddServer = async (name: string, baseUrl: string) => {
+    this.uiError = undefined;
+    try {
+      const server = addServer(name, baseUrl);
+      this.servers = getServers();
+      setActiveServer(server.id);
+      this.activeServer = server;
+      await this.switchActiveServer();
+    } catch (error) {
+      this.uiError = error instanceof Error ? error.message : String(error);
+    }
+  };
+
+  private handleRemoveServer = async (id: string) => {
+    this.uiError = undefined;
+    try {
+      removeServer(id);
+      const wasActive = id === this.activeServer.id;
+      this.servers = getServers();
+      if (wasActive) {
+        this.activeServer = getActiveServer();
+        await this.switchActiveServer();
+      }
+    } catch (error) {
+      this.uiError = error instanceof Error ? error.message : String(error);
+    }
+  };
+
+  // Swaps to whatever activeServer is currently set to: tear down the
+  // current adapter, drop any session state from the old server (since
+  // session ids are server-scoped), spin up a fresh adapter, and
+  // re-run the boot flow so working-dir + sessions reload.
+  private async switchActiveServer(): Promise<void> {
+    this.uiError = undefined;
+    this.unsubscribe?.();
+    this.unsubscribe = undefined;
+    this.adapter?.destroy();
+
+    this.appState = createInitialState(zoeaConfig.defaultUserId, zoeaConfig.defaultProjectId || undefined);
+    this.sessions = [];
+    this.serverWorkingDir = "";
+    this.clearSessionUrl();
+
+    this.createAdapter();
+    await this.boot();
+  }
+
   override render() {
     const error = this.uiError || this.appState.lastError;
 
@@ -161,10 +244,15 @@ export class ZoeaApp extends LitElement {
         .a2uiController=${this.adapter.a2ui}
         .sessions=${this.sessions}
         .sessionsLoading=${this.sessionsLoading}
+        .servers=${this.servers}
+        .activeServerId=${this.activeServer.id}
         .onSelectSession=${this.openSession}
         .onNewSession=${this.startNewSession}
         .onSend=${this.handleSend}
         .onAbort=${this.handleAbort}
+        .onSelectServer=${this.handleSelectServer}
+        .onAddServer=${this.handleAddServer}
+        .onRemoveServer=${this.handleRemoveServer}
       ></zoea-chat-view>
     `;
   }

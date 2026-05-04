@@ -26,6 +26,10 @@ export interface ZoeaAgentAdapterOptions extends ZoeaClientOptions {
   projectId?: string;
 }
 
+// ZoeaClientOptions now exposes only proxyTarget; the dev server
+// always proxies same-origin requests to that upstream.
+
+
 export class ZoeaAgentAdapter {
   private readonly client: ZoeaClient;
   private readonly listeners = new Set<(state: ZoeaAgentState) => void>();
