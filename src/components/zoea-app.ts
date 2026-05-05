@@ -7,9 +7,11 @@ import { getSessionPreview } from "../storage/session-cache";
 import {
   addServer,
   getActiveServer,
+  getLastSessionId,
   getServers,
   removeServer,
   setActiveServer,
+  setLastSessionId,
   type ZoeaServer,
 } from "../storage/server-registry";
 import type { ZoeaSessionListItem } from "../api/zoea-types";
@@ -77,15 +79,29 @@ export class ZoeaApp extends LitElement {
       const existingSessionId = url.searchParams.get("session");
 
       if (existingSessionId) {
-        await this.adapter.attachSession(existingSessionId);
-        await this.refreshSessions();
-        return;
+        try {
+          await this.adapter.attachSession(existingSessionId);
+          this.rememberSessionForActiveServer(existingSessionId);
+          await this.refreshSessions();
+          return;
+        } catch (error) {
+          // The cached session no longer exists on this server (e.g.
+          // it was created on a different gateway, or has been pruned).
+          // Drop the stale URL hint and fall through to a new session
+          // so the user lands somewhere usable instead of an error.
+          console.warn("Failed to attach cached session; starting new", error);
+          this.clearSessionUrl();
+        }
       }
 
       await this.startNewSession();
     } catch (error) {
       this.uiError = error instanceof Error ? error.message : String(error);
     }
+  }
+
+  private rememberSessionForActiveServer(sessionId: string): void {
+    setLastSessionId(this.activeServer.id, sessionId);
   }
 
   private async discoverWorkingDir(): Promise<void> {
@@ -141,6 +157,7 @@ export class ZoeaApp extends LitElement {
     this.uiError = undefined;
     const sessionId = await this.adapter.createSession();
     this.updateSessionUrl(sessionId);
+    this.rememberSessionForActiveServer(sessionId);
     await this.adapter.attachSession(sessionId);
     await this.refreshSessions();
   };
@@ -152,6 +169,7 @@ export class ZoeaApp extends LitElement {
     this.uiError = undefined;
     try {
       this.updateSessionUrl(sessionId);
+      this.rememberSessionForActiveServer(sessionId);
       await this.adapter.attachSession(sessionId);
       await this.refreshSessions();
     } catch (error) {
@@ -182,6 +200,7 @@ export class ZoeaApp extends LitElement {
     if (id === this.activeServer.id) return;
     const next = this.servers.find((s) => s.id === id);
     if (!next) return;
+    this.stashCurrentSessionForOutgoingServer();
     setActiveServer(id);
     this.activeServer = next;
     await this.switchActiveServer();
@@ -190,6 +209,7 @@ export class ZoeaApp extends LitElement {
   private handleAddServer = async (name: string, baseUrl: string) => {
     this.uiError = undefined;
     try {
+      this.stashCurrentSessionForOutgoingServer();
       const server = addServer(name, baseUrl);
       this.servers = getServers();
       setActiveServer(server.id);
@@ -203,8 +223,8 @@ export class ZoeaApp extends LitElement {
   private handleRemoveServer = async (id: string) => {
     this.uiError = undefined;
     try {
-      removeServer(id);
       const wasActive = id === this.activeServer.id;
+      removeServer(id);
       this.servers = getServers();
       if (wasActive) {
         this.activeServer = getActiveServer();
@@ -215,10 +235,22 @@ export class ZoeaApp extends LitElement {
     }
   };
 
+  // Captures the session currently visible in the chat so that a later
+  // switch back to this server resumes where the user left off. Must be
+  // called before activeServer is reassigned.
+  private stashCurrentSessionForOutgoingServer(): void {
+    const sessionId = this.appState.sessionId;
+    if (sessionId) {
+      setLastSessionId(this.activeServer.id, sessionId);
+    }
+  }
+
   // Swaps to whatever activeServer is currently set to: tear down the
   // current adapter, drop any session state from the old server (since
   // session ids are server-scoped), spin up a fresh adapter, and
-  // re-run the boot flow so working-dir + sessions reload.
+  // re-run the boot flow so working-dir + sessions reload. If the
+  // incoming server has a remembered session id, prime the URL with it
+  // so boot() resumes that session instead of creating a new one.
   private async switchActiveServer(): Promise<void> {
     this.uiError = undefined;
     this.unsubscribe?.();
@@ -228,7 +260,13 @@ export class ZoeaApp extends LitElement {
     this.appState = createInitialState(zoeaConfig.defaultUserId, zoeaConfig.defaultProjectId || undefined);
     this.sessions = [];
     this.serverWorkingDir = "";
-    this.clearSessionUrl();
+
+    const remembered = getLastSessionId(this.activeServer.id);
+    if (remembered) {
+      this.updateSessionUrl(remembered);
+    } else {
+      this.clearSessionUrl();
+    }
 
     this.createAdapter();
     await this.boot();

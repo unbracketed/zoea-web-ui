@@ -4,6 +4,7 @@
 
 const SERVERS_KEY = "zoea-web-ui.servers";
 const ACTIVE_KEY = "zoea-web-ui.activeServerId";
+const LAST_SESSION_KEY_PREFIX = "zoea-web-ui.lastSessionId.";
 
 export interface ZoeaServer {
   id: string;
@@ -101,9 +102,39 @@ export function removeServer(id: string): ZoeaServer {
     throw new Error("Server not found");
   }
   writeServers(next);
+  clearLastSessionId(id);
   const activeId = window.localStorage.getItem(ACTIVE_KEY);
   if (activeId === id) {
     setActiveServer(next[0].id);
   }
   return servers.find((s) => s.id === id)!;
+}
+
+// Per-server last-used session id. Used to keep each server's chat
+// state distinct when the user toggles between gateways: switching
+// from A to B and back lands on the session that was active in A
+// (instead of spawning a fresh one each time). Server-scoped because
+// session ids are not portable across gateways.
+export function getLastSessionId(serverId: string): string | null {
+  try {
+    return window.localStorage.getItem(`${LAST_SESSION_KEY_PREFIX}${serverId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function setLastSessionId(serverId: string, sessionId: string): void {
+  try {
+    window.localStorage.setItem(`${LAST_SESSION_KEY_PREFIX}${serverId}`, sessionId);
+  } catch {
+    // Ignore quota errors.
+  }
+}
+
+export function clearLastSessionId(serverId: string): void {
+  try {
+    window.localStorage.removeItem(`${LAST_SESSION_KEY_PREFIX}${serverId}`);
+  } catch {
+    // Ignore.
+  }
 }
