@@ -336,7 +336,7 @@ export class ZoeaAgentAdapter {
   // flow): it becomes a user-turn prompt to the agent and an
   // optimistic user message in the chat timeline. The legacy
   // a2ui.action relay envelope is also emitted so existing server-side
-  // observers (BASIL flow runtime) keep working — the server's
+  // observers keep working — the server's
   // a2ui.submit handler synthesises one as well, so both paths land.
   private handleA2uiAction(action: A2uiClientAction): void {
     this.sendA2uiSubmit(action);

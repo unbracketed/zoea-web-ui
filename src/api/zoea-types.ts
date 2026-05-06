@@ -65,7 +65,7 @@ export interface ZoeaListSessionsResponse {
 }
 
 export interface ZoeaServerInfo {
-  default_working_dir: string;
+  ZOEA_WORKING_DIR: string;
 }
 
 export interface ZoeaGatewayEvent<T = unknown> {

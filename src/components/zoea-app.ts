@@ -111,7 +111,7 @@ export class ZoeaApp extends LitElement {
     // sessions for this user.
     try {
       const info = await this.adapter.getServerInfo();
-      this.serverWorkingDir = info.default_working_dir || "";
+      this.serverWorkingDir = info.ZOEA_WORKING_DIR || "";
     } catch {
       this.serverWorkingDir = "";
     }
