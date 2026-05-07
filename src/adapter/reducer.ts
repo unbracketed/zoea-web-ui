@@ -8,7 +8,14 @@ import type {
   ZoeaTurnEndData,
 } from "../api/zoea-types";
 import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import type { A2uiFormMessage, ChatListMessage, ZoeaAction, ZoeaAgentState } from "./actions";
+import type {
+  A2uiFormMessage,
+  ArtifactsRowMessage,
+  ChatListMessage,
+  ZoeaAction,
+  ZoeaAgentState,
+  ZoeaArtifact,
+} from "./actions";
 import {
   applyTextDelta,
   applyThinkingDelta,
@@ -77,6 +84,47 @@ function updateFormMessage(messages: ChatListMessage[], surfaceId: string, patch
   const current = messages[idx] as A2uiFormMessage;
   const next: A2uiFormMessage = { ...current, ...patch };
   return [...messages.slice(0, idx), next, ...messages.slice(idx + 1)];
+}
+
+function findArtifactRowIdx(messages: ChatListMessage[], toolCallId: string): number {
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role === "zoeaArtifacts" && m.toolCallId === toolCallId) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function upsertArtifactRow(
+  messages: ChatListMessage[],
+  toolCallId: string,
+  artifacts: ZoeaArtifact[],
+): ChatListMessage[] {
+  const existing = findArtifactRowIdx(messages, toolCallId);
+  if (artifacts.length === 0) {
+    if (existing === -1) return messages;
+    return [...messages.slice(0, existing), ...messages.slice(existing + 1)];
+  }
+  const row: ArtifactsRowMessage = {
+    role: "zoeaArtifacts",
+    toolCallId,
+    artifacts,
+    createdAt: existing !== -1 ? (messages[existing] as ArtifactsRowMessage).createdAt : new Date().toISOString(),
+  };
+  if (existing !== -1) {
+    return [...messages.slice(0, existing), row, ...messages.slice(existing + 1)];
+  }
+  // Anchor after the matching toolResult message; fall back to end of
+  // list when the toolResult hasn't landed yet (unusual, but the row
+  // will rehydrate on the next action that touches the same id).
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "toolResult" && m.toolCallId === toolCallId) {
+      return [...messages.slice(0, i + 1), row, ...messages.slice(i + 1)];
+    }
+  }
+  return [...messages, row];
 }
 
 function appendToolResults(messages: ZoeaAgentState["messages"], toolResults: ToolResultMessage[]) {
@@ -370,6 +418,31 @@ export function reduceState(state: ZoeaAgentState, action: ZoeaAction): ZoeaAgen
         next = insertFormMessage(next, entry);
       }
       return { ...state, messages: next };
+    }
+
+    case "artifacts.attach": {
+      const map = new Map(state.artifactsByToolCall);
+      if (action.artifacts.length === 0) {
+        map.delete(action.toolCallId);
+      } else {
+        map.set(action.toolCallId, action.artifacts);
+      }
+      return {
+        ...state,
+        artifactsByToolCall: map,
+        messages: upsertArtifactRow(state.messages, action.toolCallId, action.artifacts),
+      };
+    }
+
+    case "artifacts.rehydrate": {
+      const map = new Map<string, ZoeaArtifact[]>();
+      const withoutRows = state.messages.filter((m) => m.role !== "zoeaArtifacts");
+      let next: ChatListMessage[] = withoutRows;
+      for (const row of action.rows) {
+        map.set(row.toolCallId, row.artifacts);
+        next = upsertArtifactRow(next, row.toolCallId, row.artifacts);
+      }
+      return { ...state, artifactsByToolCall: map, messages: next };
     }
 
     case "error":

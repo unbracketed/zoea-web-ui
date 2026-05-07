@@ -31,9 +31,35 @@ export interface A2uiFormMessage {
   createdAt: string;
 }
 
+// ZoeaArtifact is a single artifact produced by a tool run, ready to
+// render. URL is pre-built relative to the active server's API base so
+// the chat view doesn't have to thread server identity through.
+export interface ZoeaArtifact {
+  toolCallId: string;
+  resultIndex: number;
+  runId: string;
+  name: string;
+  relativePath: string;
+  mediaType?: string;
+  bytes: number;
+  metadata?: Record<string, unknown>;
+  url: string;
+}
+
+// ArtifactsRowMessage is a synthetic chat-list entry that anchors a
+// row of artifact pills under a tool result. Like A2uiFormMessage, it
+// never reaches the LLM transcript and is filtered out of selectors
+// that feed into pi-web-ui.
+export interface ArtifactsRowMessage {
+  role: "zoeaArtifacts";
+  toolCallId: string;
+  artifacts: ZoeaArtifact[];
+  createdAt: string;
+}
+
 // ChatListMessage is the union the chat-view renderer iterates. It
 // extends pi-web-ui's AgentMessage with our synthetic form items.
-export type ChatListMessage = AgentMessage | A2uiFormMessage;
+export type ChatListMessage = AgentMessage | A2uiFormMessage | ArtifactsRowMessage;
 
 export type ConnectionStatus =
   | "idle"
@@ -62,6 +88,11 @@ export interface ZoeaAgentState {
   // surface block — driving the chat-channel A2UI rendering described
   // in the agent-development guide.
   a2uiMessageIds: readonly string[];
+  // Keyed by tool-call id. Populated from agent.tool.end events that
+  // carry details.zoea.results, and again on transcript hydrate. The
+  // chat view inserts an ArtifactsRowMessage after the matching tool
+  // result; this map is the source of truth on resume.
+  artifactsByToolCall: ReadonlyMap<string, ZoeaArtifact[]>;
   lastError?: string;
 }
 
@@ -90,6 +121,8 @@ export type ZoeaAction =
       at?: string;
     }
   | { type: "a2ui.surfaces.rehydrate"; entries: A2uiFormMessage[] }
+  | { type: "artifacts.attach"; toolCallId: string; artifacts: ZoeaArtifact[] }
+  | { type: "artifacts.rehydrate"; rows: ArtifactsRowMessage[] }
   | { type: "error"; message: string };
 
 export function createInitialState(userId: string, projectId?: string): ZoeaAgentState {
@@ -104,5 +137,6 @@ export function createInitialState(userId: string, projectId?: string): ZoeaAgen
     transientToolResults: new Map(),
     a2uiSurfaceIds: [],
     a2uiMessageIds: [],
+    artifactsByToolCall: new Map(),
   };
 }

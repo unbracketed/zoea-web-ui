@@ -15,6 +15,22 @@ type ChatListEntry =
       submittedAction?: string;
       submittedAt?: string;
       createdAt: string;
+    }
+  | {
+      role: "zoeaArtifacts";
+      toolCallId: string;
+      artifacts: Array<{
+        toolCallId: string;
+        resultIndex: number;
+        runId: string;
+        name: string;
+        relativePath: string;
+        mediaType?: string;
+        bytes: number;
+        metadata?: Record<string, unknown>;
+        url: string;
+      }>;
+      createdAt: string;
     };
 
 const PREFIX = "zoea-web-ui.session.";

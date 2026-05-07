@@ -3,7 +3,7 @@ import "@a2ui/lit/v0_9";
 import { html, LitElement, nothing, type PropertyValues } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { selectToolResultsById, selectVisibleMessages } from "../adapter/selectors";
-import type { A2uiFormMessage, ChatListMessage, ZoeaAgentState } from "../adapter/actions";
+import type { A2uiFormMessage, ArtifactsRowMessage, ChatListMessage, ZoeaAgentState } from "../adapter/actions";
 import type { A2uiSessionController } from "../a2ui/a2ui-session-controller";
 import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-web-ui";
@@ -11,6 +11,7 @@ import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import type { ZoeaServer } from "../storage/server-registry";
 import "./zoea-a2ui-panel";
 import "./zoea-a2ui-form-message";
+import "./zoea-artifact-row";
 
 @customElement("zoea-chat-view")
 export class ZoeaChatView extends LitElement {
@@ -82,10 +83,12 @@ export class ZoeaChatView extends LitElement {
   private buildChatSegments(messages: ChatListMessage[]): Array<
     | { kind: "messages"; messages: AgentMessage[] }
     | { kind: "form"; form: A2uiFormMessage }
+    | { kind: "artifacts"; row: ArtifactsRowMessage }
   > {
     const segments: Array<
       | { kind: "messages"; messages: AgentMessage[] }
       | { kind: "form"; form: A2uiFormMessage }
+      | { kind: "artifacts"; row: ArtifactsRowMessage }
     > = [];
     if (messages.length === 0) {
       return segments;
@@ -101,6 +104,11 @@ export class ZoeaChatView extends LitElement {
       if (message.role === "a2uiForm") {
         flush();
         segments.push({ kind: "form", form: message });
+        continue;
+      }
+      if (message.role === "zoeaArtifacts") {
+        flush();
+        segments.push({ kind: "artifacts", row: message });
         continue;
       }
       buffer.push(message);
@@ -119,6 +127,9 @@ export class ZoeaChatView extends LitElement {
           .pendingToolCalls=${this.state.pendingToolCalls}
           .isStreaming=${this.state.isStreaming}
         ></message-list>`;
+      }
+      if (segment.kind === "artifacts") {
+        return html`<zoea-artifact-row .artifacts=${segment.row.artifacts}></zoea-artifact-row>`;
       }
       return html`<zoea-a2ui-form-message
         .controller=${this.a2uiController}

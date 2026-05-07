@@ -8,6 +8,7 @@ import type {
   ZoeaRawMessagesResponse,
   ZoeaServerInfo,
   ZoeaTextMessagesResponse,
+  ZoeaToolExecEndData,
 } from "../api/zoea-types";
 import type { A2uiClientAction } from "@a2ui/web_core/v0_9";
 import { loadSessionSnapshot, saveSessionSnapshot } from "../storage/session-cache";
@@ -20,6 +21,7 @@ import {
 } from "./actions";
 import { coerceAgentMessages, coerceTextMessages } from "./message-builders";
 import { reduceState } from "./reducer";
+import { extractArtifactsFromResult, extractArtifactsFromTranscript } from "./artifact-extract";
 
 export interface ZoeaAgentAdapterOptions extends ZoeaClientOptions {
   userId: string;
@@ -107,9 +109,10 @@ export class ZoeaAgentAdapter {
       throw new Error("No session attached");
     }
 
+    const sessionId = this.state.sessionId;
     const [stateResponse, transcript] = await Promise.all([
-      this.client.getSessionState(this.state.sessionId),
-      this.loadTranscript(this.state.sessionId),
+      this.client.getSessionState(sessionId),
+      this.loadTranscript(sessionId),
     ]);
 
     this.dispatch({
@@ -125,6 +128,15 @@ export class ZoeaAgentAdapter {
       model: stateResponse.state.model,
       thinkingLevel: stateResponse.state.thinking_level,
     });
+
+    // Tool-result messages in Pi's raw transcript carry the extension's
+    // details payload, which is where artifact metadata lives. Walk the
+    // hydrated transcript so resumed sessions show their artifact pills.
+    const rawTranscript = transcript.rawMessages ?? transcript.messages;
+    const rows = extractArtifactsFromTranscript(rawTranscript, sessionId);
+    if (rows.length > 0) {
+      this.dispatch({ type: "artifacts.rehydrate", rows });
+    }
   }
 
   async connectStream(): Promise<void> {
@@ -300,6 +312,21 @@ export class ZoeaAgentAdapter {
     }
 
     this.dispatch({ type: "gateway.event", event });
+
+    if (event.type === "agent.tool.end") {
+      const data = (event.data || {}) as ZoeaToolExecEndData;
+      const sessionId = this.state.sessionId;
+      if (data.tool_call_id && sessionId) {
+        const artifacts = extractArtifactsFromResult(data.result, data.tool_call_id, sessionId);
+        if (artifacts.length > 0) {
+          this.dispatch({
+            type: "artifacts.attach",
+            toolCallId: data.tool_call_id,
+            artifacts,
+          });
+        }
+      }
+    }
   }
 
   // Rebuilds synthetic a2uiForm chat-list entries from the
@@ -471,10 +498,13 @@ export class ZoeaAgentAdapter {
     return summary || (action.name ? `(${action.name})` : "(submitted)");
   }
 
-  private async loadTranscript(sessionId: string): Promise<{ messages: ZoeaAgentState["messages"] }> {
+  private async loadTranscript(
+    sessionId: string,
+  ): Promise<{ messages: ZoeaAgentState["messages"]; rawMessages?: unknown[] }> {
     try {
       const response = (await this.client.getMessages(sessionId, "raw")) as ZoeaRawMessagesResponse;
-      return { messages: coerceAgentMessages(response.messages || []) };
+      const raw = response.messages || [];
+      return { messages: coerceAgentMessages(raw), rawMessages: raw };
     } catch {
       const response = (await this.client.getMessages(sessionId, "text")) as ZoeaTextMessagesResponse;
       return { messages: coerceTextMessages(response.messages || []) };
