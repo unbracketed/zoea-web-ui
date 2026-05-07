@@ -340,6 +340,33 @@ body {
   border-color: transparent;
 }
 
+.zoea-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.zoea-theme-toggle:hover {
+  background: color-mix(in oklab, var(--secondary) 60%, transparent);
+}
+
+.zoea-theme-toggle__icon {
+  font-size: 0.95rem;
+}
+
+.zoea-theme-toggle__label {
+  color: var(--muted-foreground);
+}
+
 .zoea-connection-badge {
   display: inline-flex;
   align-items: center;

@@ -4,6 +4,7 @@ import type { ConnectionStatus } from "../adapter/actions";
 import { brand } from "../brand/brand.config";
 import type { ZoeaServer } from "../storage/server-registry";
 import "./zoea-server-picker";
+import "./zoea-theme-toggle";
 
 @customElement("zoea-header")
 export class ZoeaHeader extends LitElement {
@@ -46,6 +47,7 @@ export class ZoeaHeader extends LitElement {
             .onRemoveServer=${this.onRemoveServer}
           ></zoea-server-picker>
           <connection-badge .status=${this.connection} .label=${label}></connection-badge>
+          <zoea-theme-toggle></zoea-theme-toggle>
         </div>
       </header>
     `;

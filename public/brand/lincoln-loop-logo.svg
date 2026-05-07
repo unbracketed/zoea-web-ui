@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 64" role="img" aria-label="lincoln loop">
+  <g>
+    <circle cx="32" cy="32" r="26" fill="#9CD8DB"/>
+    <!-- Stylised "ll" loop mark -->
+    <path d="M22 18 C 22 30, 30 30, 30 42 M42 18 C 42 30, 34 30, 34 42"
+          fill="none" stroke="#1F4F52" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+  <g fill="currentColor" font-family="'Recursive','Asap',system-ui,sans-serif" font-weight="700" font-size="22">
+    <text x="72" y="30">lincoln</text>
+    <text x="72" y="54">loop</text>
+  </g>
+</svg>

@@ -1,7 +1,10 @@
 import "./app.css";
 import "./brand/theme.css";
 import { brand } from "./brand/brand.config";
+import { initTheme } from "./theme/theme-controller";
 import "./components/zoea-app";
+
+initTheme();
 
 document.title = brand.productName;
 
