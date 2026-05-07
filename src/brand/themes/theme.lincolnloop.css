@@ -1,22 +1,21 @@
 /*
- * Lincoln Loop brand theme.
+ * Lincoln Loop palette.
  *
- * Palette pulled from lincolnloop.com:
+ * Pulled from lincolnloop.com:
  *   dark petrol/teal background, pale cyan primary (logo bubble + "Contact"
  *   button), warm sandstone/orange accent ("Let's connect", "Built to last."),
- *   brick red used as a collage accent. The light mode flips the surface to
+ *   brick red used as a collage accent. Light mode flips the surface to
  *   off-white but keeps the same accent hues, just a touch deeper so they
  *   hold up against white.
  *
- * Typography: Recursive — the variable humanist family Lincoln Loop uses on
- * the marketing site. Loaded from Google Fonts via @import below; if you
- * prefer to self-host, drop the @import and add Recursive to public/brand/.
+ * @theme Lincoln Loop
+ * @preview-light #f5f7f8 #4ec3c8 #c5763d
+ * @preview-dark  #1c3437 #9bd9dc #d8965a
  */
 
 @import url("https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,MONO@-15..0,300..900,0..1,0..1&display=swap");
 
-:root {
-  /* Surfaces — light mode */
+[data-theme="lincolnloop"] {
   --background: oklch(0.985 0.004 220);
   --foreground: oklch(0.24 0.03 210);
   --card: oklch(1 0 0);
@@ -24,22 +23,18 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.03 210);
 
-  /* Primary = pale cyan / teal (the logo bubble, the "Contact" button) */
   --primary: oklch(0.78 0.07 197);
   --primary-foreground: oklch(0.22 0.04 210);
 
-  /* Secondary = soft teal-tinted neutral that reads against the primary */
   --secondary: oklch(0.93 0.02 200);
   --secondary-foreground: oklch(0.28 0.03 210);
 
   --muted: oklch(0.95 0.01 220);
   --muted-foreground: oklch(0.48 0.02 220);
 
-  /* Accent = warm sandstone (the "Let's connect" CTA in light mode) */
   --accent: oklch(0.7 0.12 55);
   --accent-foreground: oklch(0.18 0.03 60);
 
-  /* Destructive = the brick red from the collage */
   --destructive: oklch(0.52 0.16 30);
   --destructive-foreground: oklch(0.98 0 0);
 
@@ -53,7 +48,6 @@
   --font-serif: "Recursive", Georgia, serif;
   --font-mono: "Recursive Mono", "Recursive", ui-monospace, monospace;
 
-  /* Zoea-specific tokens */
   --success: oklch(0.7 0.13 165);
   --warning: oklch(0.78 0.13 75);
 
@@ -65,10 +59,8 @@
   --user-message-border: color-mix(in oklab, var(--primary) 35%, transparent);
 }
 
-.dark {
-  /* Surfaces — Lincoln Loop's signature deep petrol teal. The sidebar uses
-     `--card` so we widen the gap between `--background` and `--card` to give
-     the rail a subtle lift, the way the marketing site separates panels. */
+[data-theme="lincolnloop"].dark,
+.dark[data-theme="lincolnloop"] {
   --background: oklch(0.27 0.035 200);
   --foreground: oklch(0.96 0.005 200);
   --card: oklch(0.33 0.04 200);
@@ -76,7 +68,6 @@
   --popover: oklch(0.31 0.04 200);
   --popover-foreground: oklch(0.96 0.005 200);
 
-  /* Pale cyan, the way the "Contact" pill and logo bubble read on dark teal */
   --primary: oklch(0.85 0.08 197);
   --primary-foreground: oklch(0.2 0.04 210);
 
@@ -86,12 +77,9 @@
   --muted: oklch(0.36 0.03 200);
   --muted-foreground: oklch(0.78 0.02 205);
 
-  /* Sandstone — saturated and warm to match the "Let's connect" CTA on the
-     dark hero. Gets bolder than the light variant because dark teal absorbs it. */
   --accent: oklch(0.78 0.14 62);
   --accent-foreground: oklch(0.2 0.04 60);
 
-  /* Brick red from the collage — slightly punchier on dark */
   --destructive: oklch(0.62 0.18 30);
   --destructive-foreground: oklch(0.98 0 0);
 
@@ -102,19 +90,10 @@
   --success: oklch(0.76 0.14 165);
   --warning: oklch(0.84 0.14 75);
 
-  /* Mix the gradient with the warm sandstone in dark — light-mode keeps the
-     softer primary-only bias from :root above. */
   --user-message-gradient: linear-gradient(
     135deg,
     color-mix(in oklab, var(--primary) 18%, transparent),
     color-mix(in oklab, var(--accent) 14%, transparent)
   );
   --user-message-border: color-mix(in oklab, var(--primary) 30%, transparent);
-}
-
-/* Override the hardcoded user-message pill from pi-web-ui's app.css so it
-   follows the brand. */
-.user-message-container {
-  background: var(--user-message-gradient) !important;
-  border-color: var(--user-message-border) !important;
 }

@@ -1,0 +1,121 @@
+/*
+ * Zoea palette — synthwave.
+ *
+ * Pulled directly from zoea-collab-site.exe.xyz/styles.css:
+ *   --bg-dark:    #1a1a2e
+ *   --bg-darker:  #12121f
+ *   --bg-card:    #1e1e32
+ *   --cyan:       #4fd1c5
+ *   --cyan-bright:#7fffe0
+ *   --magenta:    #e040fb
+ *   --orange:     #ff6b35
+ *   --pink:       #ff61d8
+ *   font: Inter
+ *
+ * Mapping:
+ *   primary   -> cyan       (links, primary buttons)
+ *   accent    -> magenta    (the synthwave gradient partner; user pills, highlights)
+ *   destructive -> a punchier orange/pink derived from the brand orange so
+ *                  errors still feel like part of the palette
+ *
+ * Light mode is a "neon-on-paper" interpretation: white surface, cyan/magenta
+ * preserved but darkened a touch so they hold contrast against light.
+ *
+ * @theme Zoea
+ * @preview-light #fafafa #2bb8a9 #c425d9
+ * @preview-dark  #1a1a2e #4fd1c5 #e040fb
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+[data-theme="zoea"] {
+  /* Light surface with synthwave accents kept saturated */
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.22 0.03 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.03 280);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.03 280);
+
+  /* Cyan #4fd1c5 darkened slightly so it reads on white */
+  --primary: oklch(0.7 0.13 188);
+  --primary-foreground: oklch(0.16 0.03 220);
+
+  --secondary: oklch(0.95 0.01 280);
+  --secondary-foreground: oklch(0.28 0.03 280);
+
+  --muted: oklch(0.96 0.005 280);
+  --muted-foreground: oklch(0.48 0.03 280);
+
+  /* Magenta #e040fb deepened for light mode */
+  --accent: oklch(0.6 0.27 320);
+  --accent-foreground: oklch(0.99 0 0);
+
+  /* Brand orange #ff6b35, slight deepen */
+  --destructive: oklch(0.62 0.21 35);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.9 0.01 280);
+  --input: oklch(0.9 0.01 280);
+  --ring: oklch(0.7 0.13 188);
+
+  --radius: 0.5rem;
+
+  --font-sans: "Inter", -apple-system, system-ui, sans-serif;
+  --font-serif: "Inter", Georgia, serif;
+  --font-mono: "Monaco", "Menlo", ui-monospace, monospace;
+
+  --success: oklch(0.7 0.14 165);
+  --warning: oklch(0.78 0.16 80);
+
+  /* Synthwave gradient pill */
+  --user-message-gradient: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 22%, transparent),
+    color-mix(in oklab, var(--accent) 22%, transparent)
+  );
+  --user-message-border: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+[data-theme="zoea"].dark,
+.dark[data-theme="zoea"] {
+  /* Surfaces — exact synthwave palette from the marketing site */
+  --background: oklch(0.21 0.04 285);          /* #1a1a2e */
+  --foreground: oklch(0.93 0.01 280);          /* #e8e8f0 */
+  --card: oklch(0.24 0.05 285);                /* #1e1e32 */
+  --card-foreground: oklch(0.93 0.01 280);
+  --popover: oklch(0.18 0.04 285);             /* #12121f, the section-darker */
+  --popover-foreground: oklch(0.93 0.01 280);
+
+  /* Cyan #4fd1c5 — full neon */
+  --primary: oklch(0.78 0.13 188);
+  --primary-foreground: oklch(0.16 0.03 220);
+
+  --secondary: oklch(0.3 0.05 285);
+  --secondary-foreground: oklch(0.93 0.01 280);
+
+  --muted: oklch(0.27 0.04 285);
+  --muted-foreground: oklch(0.68 0.02 280);    /* #a0a0b8 */
+
+  /* Magenta #e040fb */
+  --accent: oklch(0.65 0.3 320);
+  --accent-foreground: oklch(0.16 0.03 285);
+
+  /* Orange #ff6b35 */
+  --destructive: oklch(0.7 0.2 38);
+  --destructive-foreground: oklch(0.16 0.03 285);
+
+  --border: oklch(0.34 0.04 285);
+  --input: oklch(0.34 0.04 285);
+  --ring: oklch(0.78 0.13 188);
+
+  --success: oklch(0.78 0.16 165);
+  --warning: oklch(0.82 0.17 80);
+
+  --user-message-gradient: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 25%, transparent),
+    color-mix(in oklab, var(--accent) 25%, transparent)
+  );
+  --user-message-border: color-mix(in oklab, var(--accent) 40%, transparent);
+}

@@ -32,6 +32,14 @@ body {
   color: var(--foreground);
 }
 
+/* Defeat pi-web-ui's hardcoded user-message pill so it follows the active
+   theme's --user-message-gradient. Each theme sets the tokens; this rule
+   binds them. */
+.user-message-container {
+  background: var(--user-message-gradient) !important;
+  border-color: var(--user-message-border) !important;
+}
+
 .zoea-main {
   flex: 1;
   min-width: 0;
@@ -340,7 +348,8 @@ body {
   border-color: transparent;
 }
 
-.zoea-theme-toggle {
+.zoea-theme-toggle__mode,
+.zoea-theme-toggle__trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -355,7 +364,8 @@ body {
   line-height: 1;
 }
 
-.zoea-theme-toggle:hover {
+.zoea-theme-toggle__mode:hover,
+.zoea-theme-toggle__trigger:hover {
   background: color-mix(in oklab, var(--secondary) 60%, transparent);
 }
 
@@ -365,6 +375,70 @@ body {
 
 .zoea-theme-toggle__label {
   color: var(--muted-foreground);
+}
+
+.zoea-theme-toggle__caret {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+}
+
+.zoea-theme-toggle__picker {
+  position: relative;
+  display: inline-block;
+}
+
+.zoea-theme-toggle__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zoea-theme-toggle__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.zoea-theme-toggle__item:hover,
+.zoea-theme-toggle__item.is-active {
+  background: color-mix(in oklab, var(--secondary) 60%, transparent);
+}
+
+.zoea-theme-toggle__item-label {
+  flex: 1;
+}
+
+.zoea-theme-toggle__swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  flex-shrink: 0;
+}
+
+.zoea-theme-toggle__swatch--empty {
+  background: var(--muted);
 }
 
 .zoea-connection-badge {

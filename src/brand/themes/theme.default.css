@@ -1,0 +1,29 @@
+/*
+ * Default palette — neutral shadcn-style.
+ *
+ * Inherits the upstream tokens from @mariozechner/pi-web-ui's app.css; this
+ * file only adds the Zoea-specific extensions and keeps the user-message
+ * pill on-brand-neutral.
+ *
+ * @theme Default
+ * @preview-light #ffffff #2563eb #d97706
+ * @preview-dark  #0a0a0a #60a5fa #fbbf24
+ */
+
+[data-theme="default"] {
+  --success: oklch(0.72 0.17 150);
+  --warning: oklch(0.78 0.16 75);
+
+  --user-message-gradient: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 12%, transparent),
+    color-mix(in oklab, var(--primary) 6%, transparent)
+  );
+  --user-message-border: color-mix(in oklab, var(--primary) 25%, transparent);
+}
+
+[data-theme="default"].dark,
+.dark[data-theme="default"] {
+  --success: oklch(0.7 0.16 150);
+  --warning: oklch(0.78 0.16 75);
+}
