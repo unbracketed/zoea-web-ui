@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { brand } from "../brand/brand.config";
 import type { ZoeaSessionListItem } from "../api/zoea-types";
 
 export interface ZoeaSidebarSession extends ZoeaSessionListItem {
@@ -23,15 +24,17 @@ export class ZoeaSidebar extends LitElement {
       <aside class="zoea-sidebar">
         <div class="zoea-sidebar__header">
           <div>
-            <div class="zoea-sidebar__title">Recent sessions</div>
-            <div class="zoea-sidebar__subtitle">Newest activity first</div>
+            <div class="zoea-sidebar__title">${brand.copy.sidebarTitle}</div>
+            <div class="zoea-sidebar__subtitle">${brand.copy.sidebarSubtitle}</div>
           </div>
-          <button class="zoea-sidebar__new" @click=${() => this.onNewSession?.()}>New</button>
+          <button class="zoea-sidebar__new" @click=${() => this.onNewSession?.()}>
+            ${brand.copy.sidebarNewSession}
+          </button>
         </div>
 
         <div class="zoea-sidebar__list">
-          ${this.loading ? html`<div class="zoea-sidebar__empty">Loading sessions...</div>` : ""}
-          ${!this.loading && this.sessions.length === 0 ? html`<div class="zoea-sidebar__empty">No sessions yet</div>` : ""}
+          ${this.loading ? html`<div class="zoea-sidebar__empty">${brand.copy.sidebarLoading}</div>` : ""}
+          ${!this.loading && this.sessions.length === 0 ? html`<div class="zoea-sidebar__empty">${brand.copy.sidebarEmpty}</div>` : ""}
           ${this.sessions.map(
             (session) => html`
               <button

@@ -1,5 +1,6 @@
 import { html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { brand } from "../brand/brand.config";
 import type { ZoeaServer } from "../storage/server-registry";
 
 @customElement("zoea-server-picker")
@@ -147,7 +148,7 @@ export class ZoeaServerPicker extends LitElement {
                         <input
                           class="zoea-server-picker__input"
                           type="text"
-                          placeholder="Name (e.g. Production)"
+                          placeholder=${brand.copy.serverPickerNamePlaceholder}
                           .value=${this.newName}
                           @input=${(e: Event) =>
                             (this.newName = (e.target as HTMLInputElement).value)}
@@ -156,7 +157,7 @@ export class ZoeaServerPicker extends LitElement {
                         <input
                           class="zoea-server-picker__input"
                           type="text"
-                          placeholder="https://host:port"
+                          placeholder=${brand.copy.serverPickerUrlPlaceholder}
                           .value=${this.newUrl}
                           @input=${(e: Event) =>
                             (this.newUrl = (e.target as HTMLInputElement).value)}
@@ -167,10 +168,10 @@ export class ZoeaServerPicker extends LitElement {
                             type="button"
                             @click=${this.handleCancelAdd}
                           >
-                            Cancel
+                            ${brand.copy.serverPickerCancel}
                           </button>
                           <button class="zoea-server-picker__button is-primary" type="submit">
-                            Add
+                            ${brand.copy.serverPickerSubmit}
                           </button>
                         </div>
                       </form>
@@ -181,7 +182,7 @@ export class ZoeaServerPicker extends LitElement {
                         type="button"
                         @click=${this.handleStartAdd}
                       >
-                        + Add server
+                        ${brand.copy.serverPickerAdd}
                       </button>
                     `}
               </div>

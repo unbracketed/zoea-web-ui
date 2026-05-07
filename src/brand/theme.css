@@ -1,0 +1,37 @@
+/*
+ * Brand theme overrides. Loaded after app.css so these win the cascade.
+ *
+ * Override only what you need. The full token set lives upstream in
+ * @mariozechner/mini-lit/styles/themes/default.css (shadcn-style).
+ *
+ * Tokens introduced by Zoea on top of the upstream set:
+ *   --success         success state color (form submitted, connection open)
+ *   --warning         transient state color (connecting, reconnecting)
+ *   --user-message-gradient
+ *                     background of the user-message pill in pi-web-ui
+ *   --user-message-border
+ */
+
+:root {
+  --success: oklch(0.72 0.17 150);
+  --warning: oklch(0.78 0.16 75);
+
+  --user-message-gradient: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--primary) 12%, transparent),
+    color-mix(in oklab, var(--primary) 6%, transparent)
+  );
+  --user-message-border: color-mix(in oklab, var(--primary) 25%, transparent);
+}
+
+.dark {
+  --success: oklch(0.7 0.16 150);
+  --warning: oklch(0.78 0.16 75);
+}
+
+/* Override the hardcoded orange/amber pill from pi-web-ui's app.css so the
+   user-message bubble follows the brand primary. */
+.user-message-container {
+  background: var(--user-message-gradient) !important;
+  border-color: var(--user-message-border) !important;
+}

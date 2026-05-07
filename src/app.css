@@ -141,6 +141,13 @@ body {
   gap: 2px;
 }
 
+.zoea-header__logo {
+  height: 24px;
+  width: auto;
+  display: block;
+  margin-bottom: 4px;
+}
+
 .zoea-header__title h1 {
   margin: 0;
   font-size: 1rem;
@@ -352,17 +359,17 @@ body {
 }
 
 .zoea-connection-badge--open .zoea-connection-badge__dot {
-  background: #22c55e;
+  background: var(--success);
 }
 
 .zoea-connection-badge--connecting .zoea-connection-badge__dot,
 .zoea-connection-badge--reconnecting .zoea-connection-badge__dot {
-  background: #f59e0b;
+  background: var(--warning);
 }
 
 .zoea-connection-badge--error .zoea-connection-badge__dot,
 .zoea-connection-badge--closed .zoea-connection-badge__dot {
-  background: #ef4444;
+  background: var(--destructive);
 }
 
 .zoea-error-banner {
@@ -457,8 +464,8 @@ body {
 }
 
 .zoea-a2ui-form-message--submitted {
-  border-color: color-mix(in oklab, #34a853 35%, var(--border));
-  background: color-mix(in oklab, #34a853 6%, var(--card));
+  border-color: color-mix(in oklab, var(--success) 35%, var(--border));
+  background: color-mix(in oklab, var(--success) 6%, var(--card));
 }
 
 .zoea-a2ui-form-message--cancelled {
@@ -492,7 +499,7 @@ body {
 }
 
 .zoea-a2ui-form-message--submitted .zoea-a2ui-form-message__pill {
-  background: color-mix(in oklab, #34a853 22%, transparent);
+  background: color-mix(in oklab, var(--success) 22%, transparent);
 }
 
 .zoea-a2ui-form-message__action {
