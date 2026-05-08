@@ -14,7 +14,7 @@ import {
   setLastSessionId,
   type ZoeaServer,
 } from "../storage/server-registry";
-import type { ZoeaCommandInfo, ZoeaSessionListItem } from "../api/zoea-types";
+import type { ZoeaCommandInfo, ZoeaSessionListItem, ZoeaToolInfo } from "../api/zoea-types";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./connection-badge";
 import "./zoea-chat-view";
@@ -34,6 +34,8 @@ export class ZoeaApp extends LitElement {
   @state() private servers: ZoeaServer[] = getServers();
   @state() private activeServer: ZoeaServer = getActiveServer();
   @state() private commands: ZoeaCommandInfo[] = [];
+  @state() private tools: ZoeaToolInfo[] = [];
+  @state() private configAvailable = false;
   @state() private settingsOpen = false;
 
   private adapter!: ZoeaAgentAdapter;
@@ -122,16 +124,21 @@ export class ZoeaApp extends LitElement {
   }
 
   private async discoverServerConfig(): Promise<void> {
-    // Pulls Pi's registered slash commands so the composer can
-    // autocomplete them. Server-instance-scoped under the v1 assumption
-    // that one server uses one working dir for all sessions, so we only
-    // fetch once per app load. Failure leaves commands empty — composer
-    // degrades to a plain editor.
+    // Pulls Pi's registered slash commands and tools so the composer
+    // can autocomplete and the settings panel can list inventory.
+    // Server-instance-scoped under the v1 assumption that one server
+    // uses one working dir for all sessions, so we only fetch once per
+    // app load. Failure leaves the cache empty — composer degrades to a
+    // plain editor and the settings panel shows an "unavailable" notice.
     try {
       const cfg = await this.adapter.getServerConfig();
+      this.configAvailable = cfg.available;
       this.commands = cfg.available ? cfg.commands : [];
+      this.tools = cfg.available ? cfg.tools : [];
     } catch {
+      this.configAvailable = false;
       this.commands = [];
+      this.tools = [];
     }
   }
 
@@ -322,6 +329,9 @@ export class ZoeaApp extends LitElement {
       ></zoea-chat-view>
       <zoea-settings-panel
         .open=${this.settingsOpen}
+        .commands=${this.commands}
+        .tools=${this.tools}
+        .configAvailable=${this.configAvailable}
         .onClose=${this.closeSettings}
       ></zoea-settings-panel>
     `;

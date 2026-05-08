@@ -33,19 +33,19 @@ export interface BrandConfig {
 }
 
 export const brand: BrandConfig = {
-  productName: "Lincoln Loop Console",
-  shortName: "Lincoln Loop",
-  tagline: "Perfect-fit software. Built to last.",
-  logoUrl: "/brand/lincoln-loop-logo.svg",
-  faviconUrl: "/brand/lincoln-loop-favicon.svg",
+  productName: "Zoea Assistant",
+  shortName: "Zoea",
+  tagline: "Zoea Collab is a toolkit for productive agents, virtual assistants, and private claws",
+  logoUrl: "/brand/zoea-logo.png",
+  faviconUrl: "/brand/favicon-32x32.png",
   copy: {
     headerUserPrefix: "user:",
     headerSessionPrefix: "session:",
-    sidebarTitle: "Recent loops",
+    sidebarTitle: "Recent sessions",
     sidebarSubtitle: "Newest activity first",
-    sidebarNewSession: "New loop",
-    sidebarEmpty: "No loops yet",
-    sidebarLoading: "Loading loops...",
+    sidebarNewSession: "+ New",
+    sidebarEmpty: "No sessions yet",
+    sidebarLoading: "Loading sessions...",
     serverPickerAdd: "+ Add environment",
     serverPickerCancel: "Cancel",
     serverPickerSubmit: "Add",
