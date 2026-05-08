@@ -6,6 +6,7 @@ import type {
   ZoeaRawMessagesResponse,
   ZoeaSendMessageRequest,
   ZoeaSendMessageResponse,
+  ZoeaServerConfig,
   ZoeaServerInfo,
   ZoeaSessionStateResponse,
   ZoeaTextMessagesResponse,
@@ -78,6 +79,10 @@ export class ZoeaClient {
 
   async getServerInfo(): Promise<ZoeaServerInfo> {
     return this.request<ZoeaServerInfo>("/v1/server-info");
+  }
+
+  async getServerConfig(): Promise<ZoeaServerConfig> {
+    return this.request<ZoeaServerConfig>("/v1/config");
   }
 
   async getMessages(sessionId: string, format: ZoeaTranscriptFormat): Promise<ZoeaRawMessagesResponse | ZoeaTextMessagesResponse> {

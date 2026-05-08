@@ -68,6 +68,46 @@ export interface ZoeaServerInfo {
   ZOEA_WORKING_DIR: string;
 }
 
+// Mirrors Pi's SlashCommandInfo. Passed through verbatim from
+// pi.getCommands() via the boot-time introspection snapshot. `name` is
+// the invokable command name (no leading slash). `source` distinguishes
+// extension-registered commands from skill/prompt-derived ones, useful
+// for grouping in the settings panel.
+export interface ZoeaCommandInfo {
+  name: string;
+  description?: string;
+  source?: "extension" | "prompt" | "skill";
+  sourceInfo?: {
+    path?: string;
+    source?: string;
+    scope?: "user" | "project" | "temporary";
+    origin?: "package" | "top-level";
+    baseDir?: string;
+  };
+}
+
+// Mirrors Pi's ToolInfo for the settings panel. Parameters is left as
+// unknown — the JSON Schema shape Pi emits is rich and the panel only
+// needs to render it generically.
+export interface ZoeaToolInfo {
+  name: string;
+  description?: string;
+  parameters?: unknown;
+  sourceInfo?: {
+    path?: string;
+    source?: string;
+    scope?: string;
+    origin?: string;
+  };
+}
+
+export interface ZoeaServerConfig {
+  available: boolean;
+  captured_at?: string;
+  commands: ZoeaCommandInfo[];
+  tools: ZoeaToolInfo[];
+}
+
 export interface ZoeaGatewayEvent<T = unknown> {
   type: string;
   session_id?: string;

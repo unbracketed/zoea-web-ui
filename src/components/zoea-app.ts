@@ -14,7 +14,7 @@ import {
   setLastSessionId,
   type ZoeaServer,
 } from "../storage/server-registry";
-import type { ZoeaSessionListItem } from "../api/zoea-types";
+import type { ZoeaCommandInfo, ZoeaSessionListItem } from "../api/zoea-types";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./connection-badge";
 import "./zoea-chat-view";
@@ -32,6 +32,7 @@ export class ZoeaApp extends LitElement {
   @state() private serverWorkingDir = "";
   @state() private servers: ZoeaServer[] = getServers();
   @state() private activeServer: ZoeaServer = getActiveServer();
+  @state() private commands: ZoeaCommandInfo[] = [];
 
   private adapter!: ZoeaAgentAdapter;
   private unsubscribe?: () => void;
@@ -74,6 +75,7 @@ export class ZoeaApp extends LitElement {
   private async boot() {
     try {
       await this.discoverWorkingDir();
+      await this.discoverServerConfig();
 
       const url = new URL(window.location.href);
       const existingSessionId = url.searchParams.get("session");
@@ -114,6 +116,20 @@ export class ZoeaApp extends LitElement {
       this.serverWorkingDir = info.ZOEA_WORKING_DIR || "";
     } catch {
       this.serverWorkingDir = "";
+    }
+  }
+
+  private async discoverServerConfig(): Promise<void> {
+    // Pulls Pi's registered slash commands so the composer can
+    // autocomplete them. Server-instance-scoped under the v1 assumption
+    // that one server uses one working dir for all sessions, so we only
+    // fetch once per app load. Failure leaves commands empty — composer
+    // degrades to a plain editor.
+    try {
+      const cfg = await this.adapter.getServerConfig();
+      this.commands = cfg.available ? cfg.commands : [];
+    } catch {
+      this.commands = [];
     }
   }
 
@@ -284,6 +300,7 @@ export class ZoeaApp extends LitElement {
         .sessionsLoading=${this.sessionsLoading}
         .servers=${this.servers}
         .activeServerId=${this.activeServer.id}
+        .commands=${this.commands}
         .onSelectSession=${this.openSession}
         .onNewSession=${this.startNewSession}
         .onSend=${this.handleSend}

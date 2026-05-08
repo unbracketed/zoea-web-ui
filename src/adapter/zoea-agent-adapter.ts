@@ -6,6 +6,7 @@ import type {
   ZoeaGatewayEvent,
   ZoeaListSessionsResponse,
   ZoeaRawMessagesResponse,
+  ZoeaServerConfig,
   ZoeaServerInfo,
   ZoeaTextMessagesResponse,
   ZoeaToolExecEndData,
@@ -218,6 +219,10 @@ export class ZoeaAgentAdapter {
 
   async getServerInfo(): Promise<ZoeaServerInfo> {
     return this.client.getServerInfo();
+  }
+
+  async getServerConfig(): Promise<ZoeaServerConfig> {
+    return this.client.getServerConfig();
   }
 
   destroy(): void {

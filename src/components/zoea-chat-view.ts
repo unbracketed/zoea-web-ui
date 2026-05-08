@@ -9,6 +9,7 @@ import type { StreamingMessageContainer } from "@mariozechner/pi-web-ui";
 import type { AgentMessage } from "@mariozechner/pi-web-ui";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import type { ZoeaServer } from "../storage/server-registry";
+import type { ZoeaCommandInfo } from "../api/zoea-types";
 import "./zoea-a2ui-panel";
 import "./zoea-a2ui-form-message";
 import "./zoea-artifact-row";
@@ -21,6 +22,7 @@ export class ZoeaChatView extends LitElement {
   @property({ type: Boolean }) sessionsLoading = false;
   @property({ type: Array }) servers: ZoeaServer[] = [];
   @property() activeServerId = "";
+  @property({ type: Array }) commands: ZoeaCommandInfo[] = [];
   @property({ attribute: false }) onSend?: (text: string) => void | Promise<void>;
   @property({ attribute: false }) onAbort?: () => void | Promise<void>;
   @property({ attribute: false }) onSelectSession?: (sessionId: string) => void | Promise<void>;
@@ -193,6 +195,7 @@ export class ZoeaChatView extends LitElement {
 
           <zoea-composer
             .isStreaming=${this.state.isStreaming}
+            .commands=${this.commands}
             .onSend=${this.onSend}
             .onAbort=${this.onAbort}
           ></zoea-composer>

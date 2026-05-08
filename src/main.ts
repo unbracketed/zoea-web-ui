@@ -1,9 +1,11 @@
 import "./app.css";
 import { brand } from "./brand/brand.config";
 import { initTheme } from "./theme/theme-controller";
+import { registerCustomMessageRenderers } from "./components/custom-message-renderers";
 import "./components/zoea-app";
 
 initTheme();
+registerCustomMessageRenderers();
 
 document.title = brand.productName;
 
