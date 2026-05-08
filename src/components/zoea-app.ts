@@ -21,6 +21,7 @@ import "./zoea-chat-view";
 import "./zoea-composer";
 import "./zoea-header";
 import "./zoea-server-picker";
+import "./zoea-settings-panel";
 import "./zoea-sidebar";
 
 @customElement("zoea-app")
@@ -33,6 +34,7 @@ export class ZoeaApp extends LitElement {
   @state() private servers: ZoeaServer[] = getServers();
   @state() private activeServer: ZoeaServer = getActiveServer();
   @state() private commands: ZoeaCommandInfo[] = [];
+  @state() private settingsOpen = false;
 
   private adapter!: ZoeaAgentAdapter;
   private unsubscribe?: () => void;
@@ -236,6 +238,14 @@ export class ZoeaApp extends LitElement {
     }
   };
 
+  private openSettings = () => {
+    this.settingsOpen = true;
+  };
+
+  private closeSettings = () => {
+    this.settingsOpen = false;
+  };
+
   private handleRemoveServer = async (id: string) => {
     this.uiError = undefined;
     try {
@@ -308,7 +318,12 @@ export class ZoeaApp extends LitElement {
         .onSelectServer=${this.handleSelectServer}
         .onAddServer=${this.handleAddServer}
         .onRemoveServer=${this.handleRemoveServer}
+        .onOpenSettings=${this.openSettings}
       ></zoea-chat-view>
+      <zoea-settings-panel
+        .open=${this.settingsOpen}
+        .onClose=${this.closeSettings}
+      ></zoea-settings-panel>
     `;
   }
 }

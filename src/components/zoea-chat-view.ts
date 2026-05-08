@@ -30,6 +30,7 @@ export class ZoeaChatView extends LitElement {
   @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
   @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
   @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onOpenSettings?: () => void;
 
   // Bumped whenever the controller's surfaces change so we re-render
   // the chat segments. We don't read controller-internal state directly
@@ -175,6 +176,7 @@ export class ZoeaChatView extends LitElement {
             .onSelectServer=${this.onSelectServer}
             .onAddServer=${this.onAddServer}
             .onRemoveServer=${this.onRemoveServer}
+            .onOpenSettings=${this.onOpenSettings}
           ></zoea-header>
 
           <div class="zoea-messages">

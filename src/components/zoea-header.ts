@@ -4,7 +4,6 @@ import type { ConnectionStatus } from "../adapter/actions";
 import { brand } from "../brand/brand.config";
 import type { ZoeaServer } from "../storage/server-registry";
 import "./zoea-server-picker";
-import "./zoea-theme-toggle";
 
 @customElement("zoea-header")
 export class ZoeaHeader extends LitElement {
@@ -16,6 +15,7 @@ export class ZoeaHeader extends LitElement {
   @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
   @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
   @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onOpenSettings?: () => void;
 
   protected override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -47,7 +47,15 @@ export class ZoeaHeader extends LitElement {
             .onRemoveServer=${this.onRemoveServer}
           ></zoea-server-picker>
           <connection-badge .status=${this.connection} .label=${label}></connection-badge>
-          <zoea-theme-toggle></zoea-theme-toggle>
+          <button
+            class="zoea-header__settings"
+            type="button"
+            aria-label="Open settings"
+            title="Settings"
+            @click=${() => this.onOpenSettings?.()}
+          >
+            ⚙
+          </button>
         </div>
       </header>
     `;
