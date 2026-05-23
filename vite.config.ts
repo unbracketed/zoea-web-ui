@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
+import tls from "node:tls";
 import { URL } from "node:url";
 
 const PROXY_PREFIXES = ["/v1", "/healthz", "/readyz", "/api"];
@@ -109,7 +110,7 @@ function dynamicZoeaProxy(fallbackTarget: string): Plugin {
         const outboundHeaders: Record<string, string | string[] | undefined> = { ...req.headers };
         outboundHeaders.host = targetUrl.host;
 
-        const upstreamSocket = net.connect(upstreamPort, targetUrl.hostname, () => {
+        const onConnect = () => {
           const headerLines = [`GET ${upstreamPath} HTTP/1.1`];
           for (const [name, value] of Object.entries(outboundHeaders)) {
             if (value === undefined) continue;
@@ -126,7 +127,18 @@ function dynamicZoeaProxy(fallbackTarget: string): Plugin {
           }
           upstreamSocket.pipe(clientSocket);
           clientSocket.pipe(upstreamSocket);
-        });
+        };
+
+        // For https upstreams the WS upgrade must travel over TLS (wss).
+        // net.connect would write plaintext to port 443 and the edge
+        // would tear down the connection — that's the bug we're fixing.
+        // servername is required for SNI on shared-IP HTTPS hosts.
+        const upstreamSocket: net.Socket = isHttps
+          ? tls.connect(
+              { host: targetUrl.hostname, port: upstreamPort, servername: targetUrl.hostname },
+              onConnect,
+            )
+          : net.connect(upstreamPort, targetUrl.hostname, onConnect);
 
         const cleanup = () => {
           upstreamSocket.destroy();
