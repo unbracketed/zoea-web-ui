@@ -12,8 +12,10 @@ import {
   removeServer,
   setActiveServer,
   setLastSessionId,
+  setServerApiKey,
   type ZoeaServer,
 } from "../storage/server-registry";
+import { ZoeaUnauthorizedError } from "../api/zoea-client";
 import type { ZoeaCommandInfo, ZoeaSessionListItem, ZoeaToolInfo } from "../api/zoea-types";
 import type { ZoeaSidebarSession } from "./zoea-sidebar";
 import "./connection-badge";
@@ -70,6 +72,7 @@ export class ZoeaApp extends LitElement {
       userId: zoeaConfig.defaultUserId,
       projectId: zoeaConfig.defaultProjectId || undefined,
       proxyTarget: this.activeServer.baseUrl || undefined,
+      apiKey: this.activeServer.apiKey || undefined,
     });
     this.unsubscribe = this.adapter.subscribe((state) => {
       this.appState = state;
@@ -102,13 +105,24 @@ export class ZoeaApp extends LitElement {
 
       await this.startNewSession();
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
   }
 
   private rememberSessionForActiveServer(sessionId: string): void {
     setLastSessionId(this.activeServer.id, sessionId);
   }
+
+  // Route all caught errors through here. If the server responded 401,
+  // ask the user for an API key and reconnect; otherwise surface the
+  // message in the error banner like before.
+  private handleError = (error: unknown): void => {
+    if (error instanceof ZoeaUnauthorizedError) {
+      void this.promptForApiKey(error.message);
+      return;
+    }
+    this.handleError(error);
+  };
 
   private async discoverWorkingDir(): Promise<void> {
     // Discover the server's effective working-dir so the sidebar can
@@ -172,7 +186,7 @@ export class ZoeaApp extends LitElement {
       });
       this.sessions = this.decorateSessions(response.sessions);
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     } finally {
       this.sessionsLoading = false;
     }
@@ -198,7 +212,7 @@ export class ZoeaApp extends LitElement {
       await this.adapter.attachSession(sessionId);
       await this.refreshSessions();
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
   };
 
@@ -208,7 +222,7 @@ export class ZoeaApp extends LitElement {
       await this.adapter.prompt(text);
       await this.refreshSessions();
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
   };
 
@@ -217,7 +231,7 @@ export class ZoeaApp extends LitElement {
     try {
       await this.adapter.abort();
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
   };
 
@@ -231,18 +245,57 @@ export class ZoeaApp extends LitElement {
     await this.switchActiveServer();
   };
 
-  private handleAddServer = async (name: string, baseUrl: string) => {
+  private handleAddServer = async (
+    name: string,
+    baseUrl: string,
+    apiKey: string | undefined,
+  ) => {
     this.uiError = undefined;
     try {
       this.stashCurrentSessionForOutgoingServer();
-      const server = addServer(name, baseUrl);
+      const server = addServer(name, baseUrl, apiKey);
       this.servers = getServers();
       setActiveServer(server.id);
       this.activeServer = server;
       await this.switchActiveServer();
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
+  };
+
+  private handleEditApiKey = async (id: string) => {
+    const target = this.servers.find((s) => s.id === id);
+    if (!target) return;
+    const current = target.apiKey ?? "";
+    const next = window.prompt(
+      `API key for "${target.name}" (leave blank to clear):`,
+      current,
+    );
+    if (next === null) return;
+    const updated = setServerApiKey(id, next || undefined);
+    if (!updated) return;
+    this.servers = getServers();
+    if (this.activeServer.id === id) {
+      this.activeServer = updated;
+      await this.switchActiveServer();
+    }
+  };
+
+  // Called from error handlers when a request fails with 401. Prompts
+  // for an API key, stores it on the active server, and reconnects so
+  // the next call uses the new bearer.
+  private promptForApiKey = async (reason: string): Promise<void> => {
+    const current = this.activeServer.apiKey ?? "";
+    const message = current
+      ? `${reason}\n\nThe stored API key for "${this.activeServer.name}" was rejected. Enter a new one:`
+      : `${reason}\n\n"${this.activeServer.name}" requires an API key. Enter it now:`;
+    const next = window.prompt(message, current);
+    if (!next) return;
+    const updated = setServerApiKey(this.activeServer.id, next);
+    if (!updated) return;
+    this.servers = getServers();
+    this.activeServer = updated;
+    await this.switchActiveServer();
   };
 
   private openSettings = () => {
@@ -264,7 +317,7 @@ export class ZoeaApp extends LitElement {
         await this.switchActiveServer();
       }
     } catch (error) {
-      this.uiError = error instanceof Error ? error.message : String(error);
+      this.handleError(error);
     }
   };
 
@@ -325,6 +378,7 @@ export class ZoeaApp extends LitElement {
         .onSelectServer=${this.handleSelectServer}
         .onAddServer=${this.handleAddServer}
         .onRemoveServer=${this.handleRemoveServer}
+        .onEditApiKey=${this.handleEditApiKey}
         .onOpenSettings=${this.openSettings}
       ></zoea-chat-view>
       <zoea-settings-panel

@@ -13,8 +13,13 @@ export class ZoeaHeader extends LitElement {
   @property({ type: Array }) servers: ZoeaServer[] = [];
   @property() activeServerId = "";
   @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
-  @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
+  @property({ attribute: false }) onAddServer?: (
+    name: string,
+    baseUrl: string,
+    apiKey: string | undefined,
+  ) => void | Promise<void>;
   @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onEditApiKey?: (id: string) => void | Promise<void>;
   @property({ attribute: false }) onOpenSettings?: () => void;
 
   protected override createRenderRoot(): HTMLElement | DocumentFragment {
@@ -45,6 +50,7 @@ export class ZoeaHeader extends LitElement {
             .onSelectServer=${this.onSelectServer}
             .onAddServer=${this.onAddServer}
             .onRemoveServer=${this.onRemoveServer}
+            .onEditApiKey=${this.onEditApiKey}
           ></zoea-server-picker>
           <connection-badge .status=${this.connection} .label=${label}></connection-badge>
           <button

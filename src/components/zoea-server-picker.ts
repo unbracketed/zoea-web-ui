@@ -8,13 +8,19 @@ export class ZoeaServerPicker extends LitElement {
   @property({ type: Array }) servers: ZoeaServer[] = [];
   @property() activeServerId = "";
   @property({ attribute: false }) onSelectServer?: (id: string) => void | Promise<void>;
-  @property({ attribute: false }) onAddServer?: (name: string, baseUrl: string) => void | Promise<void>;
+  @property({ attribute: false }) onAddServer?: (
+    name: string,
+    baseUrl: string,
+    apiKey: string | undefined,
+  ) => void | Promise<void>;
   @property({ attribute: false }) onRemoveServer?: (id: string) => void | Promise<void>;
+  @property({ attribute: false }) onEditApiKey?: (id: string) => void | Promise<void>;
 
   @state() private menuOpen = false;
   @state() private adding = false;
   @state() private newName = "";
   @state() private newUrl = "";
+  @state() private newApiKey = "";
 
   protected override createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
@@ -51,6 +57,7 @@ export class ZoeaServerPicker extends LitElement {
     this.adding = false;
     this.newName = "";
     this.newUrl = "";
+    this.newApiKey = "";
   };
 
   private handleSelect = async (id: string, event: Event) => {
@@ -75,6 +82,7 @@ export class ZoeaServerPicker extends LitElement {
     this.adding = false;
     this.newName = "";
     this.newUrl = "";
+    this.newApiKey = "";
   };
 
   private handleSubmitAdd = async (event: Event) => {
@@ -82,9 +90,16 @@ export class ZoeaServerPicker extends LitElement {
     event.stopPropagation();
     const name = this.newName.trim();
     const url = this.newUrl.trim();
+    const apiKey = this.newApiKey.trim() || undefined;
     if (!name || !url) return;
     this.closeMenu();
-    await this.onAddServer?.(name, url);
+    await this.onAddServer?.(name, url, apiKey);
+  };
+
+  private handleEditKey = async (id: string, event: Event) => {
+    event.stopPropagation();
+    this.closeMenu();
+    await this.onEditApiKey?.(id);
   };
 
   private renderServerLabel(server: ZoeaServer): string {
@@ -122,6 +137,14 @@ export class ZoeaServerPicker extends LitElement {
                           <span class="zoea-server-picker__item-url">
                             ${this.renderServerLabel(server)}
                           </span>
+                        </button>
+                        <button
+                          class="zoea-server-picker__item-remove"
+                          type="button"
+                          title=${server.apiKey ? "Update API key" : "Set API key"}
+                          @click=${(e: Event) => this.handleEditKey(server.id, e)}
+                        >
+                          ${server.apiKey ? "🔑" : "🔓"}
                         </button>
                         ${this.servers.length > 1
                           ? html`
@@ -161,6 +184,15 @@ export class ZoeaServerPicker extends LitElement {
                           .value=${this.newUrl}
                           @input=${(e: Event) =>
                             (this.newUrl = (e.target as HTMLInputElement).value)}
+                        />
+                        <input
+                          class="zoea-server-picker__input"
+                          type="password"
+                          placeholder="API key (optional)"
+                          autocomplete="off"
+                          .value=${this.newApiKey}
+                          @input=${(e: Event) =>
+                            (this.newApiKey = (e.target as HTMLInputElement).value)}
                         />
                         <div class="zoea-server-picker__add-actions">
                           <button

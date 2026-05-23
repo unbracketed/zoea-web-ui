@@ -26,8 +26,22 @@ export interface ZoeaStreamHandlers {
 // header for REST, ?zoeaTarget=... query param for the WebSocket
 // upgrade since browsers can't set custom WS headers). Empty/omitted
 // means "use the dev proxy's compiled-in fallback".
+//
+// apiKey, when set, is sent as `Authorization: Bearer <key>` on every
+// REST call and appended as `?token=<key>` on WebSocket upgrades (the
+// server accepts either; browsers can't set custom WS headers).
 export interface ZoeaClientOptions {
   proxyTarget?: string;
+  apiKey?: string;
+}
+
+// Thrown when the server rejects a request with HTTP 401. The app
+// catches this to prompt the user for an API key.
+export class ZoeaUnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ZoeaUnauthorizedError";
+  }
 }
 
 const TARGET_HEADER = "X-Zoea-Target";
@@ -43,9 +57,11 @@ export interface ZoeaListSessionsOptions {
 
 export class ZoeaClient {
   private readonly proxyTarget: string;
+  private readonly apiKey: string;
 
   constructor(options: ZoeaClientOptions = {}) {
     this.proxyTarget = (options.proxyTarget ?? "").replace(/\/+$/, "");
+    this.apiKey = (options.apiKey ?? "").trim();
   }
 
   async createSession(payload: ZoeaCreateSessionRequest): Promise<ZoeaCreateSessionResponse> {
@@ -129,6 +145,9 @@ export class ZoeaClient {
     if (this.proxyTarget) {
       headers[TARGET_HEADER] = this.proxyTarget;
     }
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
     const response = await fetch(this.buildHttpUrl(path), {
       ...init,
       headers,
@@ -143,6 +162,9 @@ export class ZoeaClient {
         }
       } catch {
         // Ignore JSON parse failures on error paths.
+      }
+      if (response.status === 401) {
+        throw new ZoeaUnauthorizedError(message);
       }
       throw new Error(message);
     }
@@ -163,6 +185,11 @@ export class ZoeaClient {
     url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     if (this.proxyTarget) {
       url.searchParams.set(TARGET_QUERY, this.proxyTarget);
+    }
+    if (this.apiKey) {
+      // Server supports ?token= as a Bearer fallback for WS clients
+      // that can't set custom headers (see auth/check.go:extractBearer).
+      url.searchParams.set("token", this.apiKey);
     }
     return url.toString();
   }
